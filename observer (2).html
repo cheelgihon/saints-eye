@@ -1,0 +1,3923 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAINT'S EYE // GLOBAL OPERATIONS DASHBOARD</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #04070d;
+        --bg-2: #070d18;
+        --panel: rgba(8, 16, 28, 0.55);
+        --panel-solid: #08111c;
+        --grid: rgba(0, 212, 255, 0.035);
+        --border: #15303d;
+        --border-active: #2a6080;
+        --primary: #00d4ff;
+        --primary-dim: #4a9fb8;
+        --amber: #ffb84d;
+        --danger: #ff4d6d;
+        --ok: #4dffa6;
+        --text: #c5dde8;
+        --text-dim: #6e8a9a;
+        --text-mute: #3a5868;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          "Roboto Mono", "Consolas", "Menlo", "Courier New", monospace;
+        font-size: 13px;
+        line-height: 1.45;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(var(--grid) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+        background-size: 44px 44px;
+        pointer-events: none;
+        z-index: 1;
+      }
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          rgba(0, 212, 255, 0.015) 0px,
+          rgba(0, 212, 255, 0.015) 1px,
+          transparent 1px,
+          transparent 3px
+        );
+        pointer-events: none;
+        z-index: 9999;
+      }
+
+      .vignette {
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(
+          ellipse at center,
+          transparent 40%,
+          rgba(0, 0, 0, 0.78) 100%
+        );
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      /* BOOT */
+      #boot {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        color: var(--text);
+        transition: opacity 0.6s ease;
+      }
+      #boot.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #boot .boot-inner {
+        width: 720px;
+        max-width: 94vw;
+        border: 1px solid var(--border-active);
+        background: rgba(0, 0, 0, 0.45);
+        padding: 0;
+        max-height: 88vh;
+        display: flex;
+        flex-direction: column;
+      }
+      #boot .boot-header {
+        border-bottom: 1px solid var(--border);
+        padding: 14px 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(0, 212, 255, 0.03);
+      }
+      #boot .boot-header .left {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      #boot .boot-header .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--border);
+        display: inline-block;
+      }
+      #boot .boot-header .dot.r {
+        background: #ff5f56;
+      }
+      #boot .boot-header .dot.y {
+        background: #ffbd2e;
+      }
+      #boot .boot-header .dot.g {
+        background: #27c93f;
+      }
+      #boot .boot-header .title {
+        font-size: 10px;
+        color: var(--text-mute);
+        letter-spacing: 2.5px;
+        font-weight: 700;
+        margin-left: 14px;
+      }
+      #boot .boot-header .ts {
+        font-size: 9px;
+        color: var(--text-mute);
+        letter-spacing: 1.5px;
+      }
+      #boot .boot-log {
+        padding: 18px 22px;
+        overflow-y: auto;
+        flex: 1;
+        font-family: inherit;
+      }
+      .term-line {
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--text-dim);
+        white-space: pre-wrap;
+        word-break: break-word;
+        min-height: 19px;
+        margin: 0;
+      }
+      .term-line.term-cmd {
+        color: var(--primary);
+      }
+      .term-line.term-log {
+        color: var(--text-dim);
+      }
+      .term-line.term-ok {
+        color: var(--ok);
+      }
+      .term-line.term-arrow {
+        color: var(--amber);
+        margin-top: 6px;
+      }
+      .term-line.term-finish {
+        color: var(--primary);
+        font-weight: 700;
+        margin-top: 8px;
+      }
+
+      /* CSS-rendered profile card (replaces unreliable unicode ASCII box) */
+      .term-card {
+        display: inline-block;
+        margin: 10px 0 6px;
+        padding: 14px 22px 16px;
+        border: 1px solid var(--primary);
+        min-width: 360px;
+        opacity: 0;
+        animation: termCardIn 0.5s ease forwards;
+      }
+      @keyframes termCardIn {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .term-card-title {
+        color: var(--primary);
+        font-weight: 700;
+        letter-spacing: 3px;
+        font-size: 12px;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px dashed var(--border);
+      }
+      .term-card-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .term-card-row {
+        display: flex;
+        font-size: 11.5px;
+        letter-spacing: 1px;
+        opacity: 0;
+        animation: termRowIn 0.3s ease forwards;
+      }
+      .term-card-row:nth-child(1) {
+        animation-delay: 0.2s;
+      }
+      .term-card-row:nth-child(2) {
+        animation-delay: 0.32s;
+      }
+      .term-card-row:nth-child(3) {
+        animation-delay: 0.44s;
+      }
+      .term-card-row:nth-child(4) {
+        animation-delay: 0.56s;
+      }
+      .term-card-row:nth-child(5) {
+        animation-delay: 0.68s;
+      }
+      @keyframes termRowIn {
+        from {
+          opacity: 0;
+          transform: translateX(-6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      .term-card-lbl {
+        color: var(--text-mute);
+        min-width: 110px;
+        font-weight: 500;
+      }
+      .term-card-val {
+        color: var(--amber);
+        font-weight: 700;
+      }
+      .term-cursor {
+        display: inline-block;
+        width: 7px;
+        height: 13px;
+        background: var(--primary);
+        margin-left: 2px;
+        vertical-align: text-bottom;
+        animation: termBlink 0.7s steps(1) infinite;
+      }
+      @keyframes termBlink {
+        50% {
+          opacity: 0;
+        }
+      }
+
+      /* APP */
+      #app {
+        position: relative;
+        z-index: 3;
+        height: 100vh;
+        width: 100vw;
+        display: grid;
+        grid-template-rows: 58px 1fr 30px;
+        padding: 8px;
+        gap: 8px;
+        opacity: 0;
+        transition: opacity 0.7s ease 0.2s;
+      }
+      #app.ready {
+        opacity: 1;
+      }
+
+      header {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        padding: 0 18px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        backdrop-filter: blur(4px);
+      }
+      .sysname {
+        font-weight: 700;
+        font-size: 18px;
+        letter-spacing: 6px;
+        color: var(--primary);
+        line-height: 1.1;
+      }
+      .sysname .sub {
+        font-weight: 400;
+        font-size: 10px;
+        letter-spacing: 3px;
+        color: var(--text-mute);
+        display: block;
+        margin-top: 2px;
+      }
+      .clocks {
+        display: flex;
+        gap: 26px;
+        justify-content: center;
+      }
+      .clock {
+        text-align: center;
+        min-width: 80px;
+      }
+      .clock .label {
+        font-weight: 500;
+        font-size: 9px;
+        color: var(--text-mute);
+        letter-spacing: 2px;
+        margin-bottom: 2px;
+      }
+      .clock .time {
+        font-weight: 500;
+        font-size: 15px;
+        color: var(--amber);
+        font-variant-numeric: tabular-nums;
+      }
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        font-size: 11px;
+        color: var(--text-dim);
+        letter-spacing: 1px;
+      }
+      .led {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--primary);
+        box-shadow: 0 0 6px var(--primary);
+        animation: pulse 2.2s ease-in-out infinite;
+        margin-right: 6px;
+        vertical-align: middle;
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.35;
+        }
+      }
+      .classification {
+        color: var(--primary);
+        border: 1px solid var(--primary-dim);
+        padding: 3px 10px;
+        font-size: 10px;
+        letter-spacing: 2px;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 290px 1fr 290px;
+        gap: 8px;
+        min-height: 0;
+      }
+      .col {
+        display: grid;
+        grid-template-rows: 1fr 1fr;
+        gap: 8px;
+        min-height: 0;
+      }
+
+      .panel {
+        position: relative;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        backdrop-filter: blur(4px);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .panel::before,
+      .panel::after,
+      .panel > .corner-bl,
+      .panel > .corner-br {
+        content: "";
+        position: absolute;
+        width: 9px;
+        height: 9px;
+        border-color: var(--primary-dim);
+        border-style: solid;
+        pointer-events: none;
+        z-index: 5;
+      }
+      .panel::before {
+        top: -1px;
+        left: -1px;
+        border-width: 1px 0 0 1px;
+      }
+      .panel::after {
+        top: -1px;
+        right: -1px;
+        border-width: 1px 1px 0 0;
+      }
+      .panel > .corner-bl {
+        bottom: -1px;
+        left: -1px;
+        border-width: 0 0 1px 1px;
+      }
+      .panel > .corner-br {
+        bottom: -1px;
+        right: -1px;
+        border-width: 0 1px 1px 0;
+      }
+
+      .panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 14px;
+        border-bottom: 1px solid var(--border);
+        background: linear-gradient(
+          90deg,
+          rgba(0, 212, 255, 0.05),
+          transparent
+        );
+      }
+      .panel-title {
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 3px;
+        color: var(--primary);
+      }
+      .panel-meta {
+        font-size: 10px;
+        color: var(--text-mute);
+        letter-spacing: 1.5px;
+      }
+      .panel-meta .dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--primary);
+        margin-right: 5px;
+        animation: pulse 1.6s ease-in-out infinite;
+        vertical-align: middle;
+      }
+      .panel-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px 14px;
+        min-height: 0;
+      }
+      .panel-body::-webkit-scrollbar {
+        width: 4px;
+      }
+      .panel-body::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .panel-body::-webkit-scrollbar-thumb {
+        background: var(--border-active);
+      }
+
+      /* NEWS */
+      .news-item {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
+        padding: 8px 0;
+        border-bottom: 1px dashed var(--border);
+      }
+      .news-item:last-child {
+        border-bottom: none;
+      }
+      .news-item .meta {
+        font-weight: 500;
+        font-size: 10px;
+        color: var(--amber);
+        letter-spacing: 1px;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 3px;
+      }
+      .news-item .title {
+        font-size: 12px;
+        color: var(--text);
+        line-height: 1.35;
+      }
+      .news-item:hover .title {
+        color: var(--primary);
+      }
+      .news-item.is-new {
+        animation: newFlash 6s ease-out;
+      }
+      @keyframes newFlash {
+        0% {
+          background: rgba(77, 255, 166, 0.18);
+          box-shadow: inset 3px 0 0 var(--ok);
+        }
+        100% {
+          background: transparent;
+          box-shadow: inset 3px 0 0 transparent;
+        }
+      }
+      .news-item.is-highlighted {
+        animation: newsHighlight 3s ease-out forwards;
+      }
+      @keyframes newsHighlight {
+        0% {
+          background: rgba(77, 255, 166, 0.3);
+          box-shadow: inset 3px 0 0 var(--ok);
+        }
+        100% {
+          background: transparent;
+          box-shadow: inset 3px 0 0 transparent;
+        }
+      }
+
+      /* WATCHLIST */
+      .wl-row {
+        display: grid;
+        grid-template-columns: 75px 1fr auto;
+        align-items: center;
+        padding: 7px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px;
+      }
+      .wl-row:last-child {
+        border-bottom: none;
+      }
+      .wl-sym {
+        color: var(--amber);
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        font-size: 11px;
+      }
+      .wl-price {
+        color: var(--text);
+        text-align: right;
+        font-size: 12px;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+      }
+      .wl-change {
+        font-size: 10px;
+        padding: 1px 5px;
+        margin-left: 8px;
+        min-width: 58px;
+        text-align: right;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+      }
+      .up {
+        color: var(--ok);
+      }
+      .down {
+        color: var(--danger);
+      }
+      .wl-loading {
+        color: var(--text-mute);
+        font-size: 10px;
+        text-align: right;
+      }
+
+      /* ZONES */
+      .zone-item {
+        padding: 8px 10px;
+        margin-bottom: 5px;
+        border: 1px solid var(--border);
+        background: rgba(0, 212, 255, 0.012);
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .zone-item:hover {
+        background: rgba(0, 212, 255, 0.06);
+        border-color: var(--primary-dim);
+      }
+      .zone-item .zh {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 3px;
+      }
+      .zone-item .zname {
+        font-size: 13px;
+        color: var(--text);
+        letter-spacing: 1.5px;
+        font-weight: 500;
+      }
+      .zone-item:hover .zname {
+        color: var(--primary);
+      }
+      .zone-item .zsev {
+        font-size: 10px;
+        padding: 1px 6px;
+        border: 1px solid;
+        letter-spacing: 1px;
+        font-weight: 500;
+      }
+      .sev-high {
+        color: var(--danger);
+        border-color: var(--danger);
+        animation: pulse 1.6s infinite;
+      }
+      .sev-mid {
+        color: var(--amber);
+        border-color: var(--amber);
+      }
+      .sev-low {
+        color: var(--ok);
+        border-color: var(--ok);
+      }
+      .zone-item .zmeta {
+        font-size: 10px;
+        color: var(--text-dim);
+        letter-spacing: 1px;
+      }
+
+      /* DATA ROWS (ISS) */
+      .data-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 7px 0;
+        border-bottom: 1px dashed var(--border);
+        font-size: 11px;
+      }
+      .data-row:last-child {
+        border-bottom: none;
+      }
+      .data-label {
+        color: var(--text-mute);
+        letter-spacing: 1.5px;
+      }
+      .data-value {
+        color: var(--amber);
+        font-size: 12px;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+      }
+      .data-value.hot {
+        color: var(--primary);
+      }
+
+      /* GLOBE */
+      .globe-wrap {
+        position: relative;
+        border: 1px solid var(--border);
+        background: radial-gradient(
+          ellipse at center,
+          rgba(10, 30, 50, 0.2),
+          transparent 70%
+        );
+        overflow: hidden;
+      }
+      #globe {
+        width: 100%;
+        height: 100%;
+      }
+      .globe-overlay {
+        position: absolute;
+        pointer-events: none;
+        color: var(--primary-dim);
+        font-size: 11px;
+        letter-spacing: 1.5px;
+        z-index: 6;
+      }
+      .overlay-tl {
+        top: 14px;
+        left: 16px;
+      }
+      .overlay-tr {
+        top: 14px;
+        right: 16px;
+        text-align: right;
+      }
+      .overlay-bl {
+        bottom: 14px;
+        left: 16px;
+      }
+      .overlay-br {
+        bottom: 14px;
+        right: 16px;
+        text-align: right;
+      }
+      .globe-overlay .big {
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--amber);
+        letter-spacing: 3px;
+        margin-bottom: 4px;
+      }
+      .globe-overlay .dim {
+        color: var(--text-mute);
+        font-size: 10px;
+      }
+      .globe-overlay .legend-row {
+        font-size: 10px;
+        line-height: 1.5;
+      }
+
+      .crosshair {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 50px;
+        height: 50px;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 6;
+        opacity: 0.25;
+      }
+      .crosshair::before,
+      .crosshair::after {
+        content: "";
+        position: absolute;
+        background: var(--primary-dim);
+      }
+      .crosshair::before {
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 1px;
+      }
+      .crosshair::after {
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+      }
+
+      /* TARGETING CURSOR — replaces native cursor over globe */
+      .globe-wrap {
+        cursor: none;
+      }
+      .pin-popup,
+      .pin-popup * {
+        cursor: default;
+      }
+      .pin-popup .pin-close,
+      .pin-popup a,
+      .pin-popup button {
+        cursor: pointer;
+      }
+
+      #targeting-cursor {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 56px;
+        height: 56px;
+        pointer-events: none;
+        z-index: 50;
+        opacity: 0;
+        transition: opacity 0.12s ease;
+        will-change: transform;
+      }
+      #targeting-cursor.show {
+        opacity: 1;
+      }
+
+      .target-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        animation: targetBreath 1.8s ease-in-out infinite;
+      }
+      @keyframes targetBreath {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.1);
+        }
+      }
+
+      .target-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 44px;
+        height: 44px;
+        transform: translate(-50%, -50%);
+        border: 1px dashed rgba(0, 212, 255, 0.55);
+        border-radius: 50%;
+        animation: targetRingSpin 5.5s linear infinite;
+      }
+      @keyframes targetRingSpin {
+        from {
+          transform: translate(-50%, -50%) rotate(0deg);
+        }
+        to {
+          transform: translate(-50%, -50%) rotate(360deg);
+        }
+      }
+
+      .target-bracket {
+        position: absolute;
+        width: 9px;
+        height: 9px;
+        border-color: var(--primary);
+        border-style: solid;
+        transition:
+          border-color 0.15s,
+          width 0.15s,
+          height 0.15s;
+      }
+      .target-bracket.tl {
+        top: 4px;
+        left: 4px;
+        border-width: 2px 0 0 2px;
+      }
+      .target-bracket.tr {
+        top: 4px;
+        right: 4px;
+        border-width: 2px 2px 0 0;
+      }
+      .target-bracket.bl {
+        bottom: 4px;
+        left: 4px;
+        border-width: 0 0 2px 2px;
+      }
+      .target-bracket.br {
+        bottom: 4px;
+        right: 4px;
+        border-width: 0 2px 2px 0;
+      }
+
+      .target-cross {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--primary) 30%,
+          var(--primary) 70%,
+          transparent
+        );
+        transition: background 0.15s;
+      }
+      .target-cross.h {
+        width: 18px;
+        height: 1px;
+      }
+      .target-cross.v {
+        width: 1px;
+        height: 18px;
+        background: linear-gradient(
+          180deg,
+          transparent,
+          var(--primary) 30%,
+          var(--primary) 70%,
+          transparent
+        );
+      }
+
+      .target-dot {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 3px;
+        height: 3px;
+        background: var(--primary);
+        transition: background 0.15s;
+      }
+
+      /* LOCKED state — when cursor is over a country polygon */
+      #targeting-cursor.locked .target-inner {
+        animation: targetLockPulse 0.75s ease-in-out infinite;
+      }
+      @keyframes targetLockPulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.18);
+        }
+      }
+      #targeting-cursor.locked .target-ring {
+        border-color: rgba(77, 255, 166, 0.7);
+        animation-duration: 2.4s;
+      }
+      #targeting-cursor.locked .target-bracket {
+        border-color: var(--ok);
+        width: 11px;
+        height: 11px;
+      }
+      #targeting-cursor.locked .target-cross.h {
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--ok) 30%,
+          var(--ok) 70%,
+          transparent
+        );
+      }
+      #targeting-cursor.locked .target-cross.v {
+        background: linear-gradient(
+          180deg,
+          transparent,
+          var(--ok) 30%,
+          var(--ok) 70%,
+          transparent
+        );
+      }
+      #targeting-cursor.locked .target-dot {
+        background: var(--ok);
+      }
+
+      /* Floating tooltip anchored to globe geographic point */
+      .globe-tooltip {
+        pointer-events: none;
+        background: rgba(2, 8, 14, 0.94);
+        border: 1px solid var(--primary);
+        padding: 9px 13px;
+        min-width: 220px;
+        max-width: 320px;
+        font-family: inherit;
+        user-select: none;
+        transform: translate(14px, -50%);
+        position: relative;
+      }
+      .globe-tooltip::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: -7px;
+        transform: translateY(-50%);
+        width: 0;
+        height: 0;
+        border: 4px solid transparent;
+        border-right-color: var(--primary);
+      }
+      .globe-tt-name {
+        color: var(--primary);
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        font-size: 11px;
+        margin-bottom: 6px;
+        padding-bottom: 6px;
+        border-bottom: 1px dashed var(--border);
+        white-space: nowrap;
+      }
+      .globe-tt-flag {
+        font-size: 14px;
+        vertical-align: middle;
+        margin-right: 4px;
+      }
+      .globe-tt-news-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .globe-tt-news-item {
+        color: var(--text);
+        font-size: 10px;
+        line-height: 1.4;
+        letter-spacing: 0.3px;
+      }
+      .globe-tt-news-item::before {
+        content: "▸ ";
+        color: var(--ok);
+      }
+      .globe-tt-empty {
+        color: var(--text-mute);
+        font-size: 10px;
+        font-style: italic;
+        letter-spacing: 0.5px;
+      }
+      .globe-tt-loading {
+        color: var(--amber);
+        font-size: 10px;
+        letter-spacing: 0.5px;
+      }
+      .globe-tt-loading::after {
+        content: "...";
+        animation: ttDots 1.2s steps(4) infinite;
+      }
+      @keyframes ttDots {
+        0% {
+          content: "";
+        }
+        25% {
+          content: ".";
+        }
+        50% {
+          content: "..";
+        }
+        75% {
+          content: "...";
+        }
+      }
+
+      /* FOOTER */
+      footer {
+        border: 1px solid var(--border);
+        background: var(--panel);
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        font-size: 11px;
+        gap: 14px;
+      }
+      .ticker-label {
+        font-weight: 700;
+        color: var(--amber);
+        letter-spacing: 2px;
+        flex-shrink: 0;
+        font-size: 11px;
+      }
+      .ticker-track {
+        flex: 1;
+        overflow: hidden;
+        position: relative;
+        height: 100%;
+        display: flex;
+        align-items: center;
+      }
+      .ticker-content {
+        white-space: nowrap;
+        display: inline-block;
+        animation: ticker 120s linear infinite;
+        color: var(--text-dim);
+      }
+      .ticker-content span.sep {
+        color: var(--primary-dim);
+        margin: 0 14px;
+      }
+      @keyframes ticker {
+        from {
+          transform: translateX(0);
+        }
+        to {
+          transform: translateX(-50%);
+        }
+      }
+
+      .scene-tooltip {
+        font-family: "Roboto Mono", monospace !important;
+        background: var(--panel-solid) !important;
+        border: 1px solid var(--primary-dim) !important;
+        color: var(--text) !important;
+        padding: 6px 10px !important;
+        font-size: 11px !important;
+      }
+
+      /* OSINT BRIEF */
+      .brief-updated {
+        font-size: 9px;
+        color: var(--text-mute);
+        letter-spacing: 1.5px;
+        padding: 2px 0 8px;
+        border-bottom: 1px dashed var(--border);
+        margin-bottom: 6px;
+      }
+      .brief-row {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px dashed var(--border);
+      }
+      .brief-row:last-child {
+        border-bottom: none;
+      }
+      .brief-label {
+        flex-shrink: 0;
+        width: 56px;
+        font-size: 9px;
+        color: var(--primary);
+        letter-spacing: 1.5px;
+        font-weight: 700;
+      }
+      .brief-text {
+        flex: 1;
+        font-size: 11px;
+        color: var(--text);
+        line-height: 1.4;
+      }
+      .brief-text.brief-empty {
+        color: var(--text-mute);
+        font-style: italic;
+      }
+
+      .empty {
+        color: var(--text-mute);
+        font-style: italic;
+        font-size: 11px;
+        padding: 8px 0;
+      }
+
+      /* ===== LOGIN SCREEN ===== */
+      #login {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        z-index: 10001;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        color: var(--primary);
+        transition: opacity 0.5s ease;
+      }
+      #login.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #login .login-inner {
+        width: 520px;
+        max-width: 92vw;
+        border: 1px solid var(--primary-dim);
+        background: rgba(0, 0, 0, 0.55);
+        padding: 26px 32px 22px;
+      }
+      .login-classified-tag {
+        text-align: center;
+        font-size: 9px;
+        color: var(--danger);
+        letter-spacing: 3px;
+        margin-bottom: 14px;
+        font-weight: 700;
+      }
+      #login h1 {
+        font-weight: 700;
+        font-size: 28px;
+        color: var(--primary);
+        margin-bottom: 6px;
+        letter-spacing: 10px;
+        text-align: center;
+      }
+      #login .login-tagline {
+        color: var(--text-dim);
+        font-size: 10px;
+        margin-bottom: 4px;
+        letter-spacing: 2.5px;
+        text-align: center;
+        font-weight: 500;
+      }
+      .login-divider {
+        border-top: 1px dashed var(--border);
+        margin: 18px 0 16px;
+      }
+      .login-brief {
+        font-size: 11px;
+        color: var(--text-dim);
+        line-height: 1.55;
+        letter-spacing: 0.3px;
+      }
+      .login-brief-row {
+        display: flex;
+        gap: 10px;
+        padding: 4px 0;
+      }
+      .brief-sym {
+        color: var(--primary);
+        flex-shrink: 0;
+        font-weight: 700;
+      }
+      .login-field {
+        margin-bottom: 14px;
+      }
+      .login-field label {
+        display: block;
+        font-size: 9px;
+        color: var(--text-mute);
+        letter-spacing: 2px;
+        margin-bottom: 5px;
+        font-weight: 700;
+      }
+      .login-field input {
+        width: 100%;
+        background: transparent;
+        border: 1px solid var(--border);
+        outline: none;
+        padding: 9px 12px;
+        font-family: inherit;
+        font-size: 13px;
+        color: var(--text);
+        letter-spacing: 1.5px;
+        transition: border-color 0.15s;
+      }
+      .login-field input::placeholder {
+        color: var(--text-mute);
+        opacity: 0.6;
+        letter-spacing: 1px;
+      }
+      .login-field input:focus {
+        border-color: var(--primary);
+        background: rgba(0, 212, 255, 0.025);
+      }
+      .login-error {
+        color: var(--danger);
+        font-size: 10px;
+        letter-spacing: 1.5px;
+        margin-bottom: 10px;
+        min-height: 14px;
+        font-weight: 500;
+      }
+      .login-error.shake {
+        animation: loginShake 0.35s;
+      }
+      @keyframes loginShake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        20% {
+          transform: translateX(-5px);
+        }
+        40% {
+          transform: translateX(5px);
+        }
+        60% {
+          transform: translateX(-3px);
+        }
+        80% {
+          transform: translateX(3px);
+        }
+      }
+      .login-attempts {
+        font-size: 9px;
+        color: var(--text-mute);
+        letter-spacing: 2px;
+        margin-bottom: 14px;
+      }
+      .login-btn {
+        width: 100%;
+        background: var(--primary);
+        color: var(--bg);
+        border: none;
+        padding: 11px 16px;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 4px;
+        cursor: pointer;
+        transition: opacity 0.15s;
+      }
+      .login-btn:hover {
+        opacity: 0.85;
+      }
+      .login-footer {
+        margin-top: 18px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+        text-align: center;
+        font-size: 9px;
+        color: var(--text-mute);
+        letter-spacing: 2px;
+      }
+      .login-dot {
+        color: var(--ok);
+        animation: pulse 1.6s ease-in-out infinite;
+        margin-right: 4px;
+      }
+      .login-locked-wrap {
+        text-align: center;
+        padding: 24px 0 12px;
+      }
+      .login-locked-title {
+        color: var(--danger);
+        font-size: 24px;
+        letter-spacing: 8px;
+        font-weight: 700;
+        margin-bottom: 12px;
+        animation: pulse 1.6s ease-in-out infinite;
+      }
+      .login-locked-text {
+        color: var(--text-dim);
+        font-size: 11px;
+        letter-spacing: 1px;
+        line-height: 1.6;
+      }
+      .login-locked-text .incident {
+        color: var(--amber);
+        font-family: inherit;
+      }
+
+      /* ===== COMMAND BAR (Ctrl+K) ===== */
+      .cmdbar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(2px);
+        z-index: 8999;
+        display: none;
+      }
+      .cmdbar-backdrop.open {
+        display: block;
+      }
+      .cmdbar {
+        position: fixed;
+        top: 90px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 520px;
+        max-width: 92vw;
+        background: var(--panel-solid);
+        border: 1px solid var(--primary-dim);
+        box-shadow:
+          0 0 30px rgba(0, 212, 255, 0.15),
+          0 12px 40px rgba(0, 0, 0, 0.6);
+        z-index: 9000;
+        display: none;
+        flex-direction: column;
+      }
+      .cmdbar.open {
+        display: flex;
+      }
+      .cmdbar-input {
+        width: 100%;
+        background: transparent;
+        border: none;
+        outline: none;
+        padding: 14px 16px;
+        font-family: "Roboto Mono", "Consolas", monospace;
+        font-size: 14px;
+        color: var(--text);
+        border-bottom: 1px solid var(--border);
+        letter-spacing: 0.5px;
+      }
+      .cmdbar-input::placeholder {
+        color: var(--text-mute);
+      }
+      .cmdbar-hint {
+        padding: 6px 16px;
+        font-size: 9px;
+        color: var(--text-mute);
+        letter-spacing: 1.5px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(0, 212, 255, 0.02);
+      }
+      .cmdbar-hint kbd {
+        display: inline-block;
+        padding: 1px 5px;
+        border: 1px solid var(--border-active);
+        border-radius: 2px;
+        margin: 0 2px;
+        color: var(--primary);
+        font-size: 9px;
+      }
+      .cmdbar-results {
+        max-height: 380px;
+        overflow-y: auto;
+      }
+      .cmdbar-results::-webkit-scrollbar {
+        width: 5px;
+      }
+      .cmdbar-results::-webkit-scrollbar-thumb {
+        background: var(--border-active);
+      }
+      .cmd-result {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 9px 16px;
+        cursor: pointer;
+        border-bottom: 1px solid var(--border);
+        transition: background 0.1s;
+      }
+      .cmd-result:hover,
+      .cmd-result.active {
+        background: rgba(0, 212, 255, 0.08);
+      }
+      .cmd-result.active .cmd-result-main {
+        color: var(--primary);
+      }
+      .cmd-result-main {
+        font-size: 13px;
+        color: var(--text);
+        letter-spacing: 0.5px;
+      }
+      .cmd-result-main .flag {
+        margin-right: 6px;
+      }
+      .cmd-result-meta {
+        font-size: 10px;
+        color: var(--text-dim);
+        letter-spacing: 1px;
+      }
+      .cmd-empty {
+        padding: 16px;
+        color: var(--text-mute);
+        text-align: center;
+        font-size: 11px;
+        letter-spacing: 1px;
+      }
+
+      /* ===== PIN POPUP ===== */
+      .pin-popup {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+        width: 280px;
+        max-height: calc(100% - 24px);
+        overflow-y: auto;
+        background: var(--panel-solid);
+        border: 1px solid var(--primary-dim);
+        box-shadow: 0 0 20px rgba(0, 212, 255, 0.12);
+        z-index: 8;
+        display: none;
+      }
+      .pin-popup.open {
+        display: block;
+        animation: pinSlideIn 0.25s ease;
+      }
+      @keyframes pinSlideIn {
+        from {
+          transform: translateX(20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      .pin-popup::-webkit-scrollbar {
+        width: 4px;
+      }
+      .pin-popup::-webkit-scrollbar-thumb {
+        background: var(--border-active);
+      }
+      .pin-popup-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border);
+        background: linear-gradient(90deg, rgba(0, 212, 255, 0.1), transparent);
+        position: sticky;
+        top: 0;
+        background-color: var(--panel-solid);
+      }
+      .pin-title {
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 2.5px;
+        color: var(--primary);
+      }
+      .pin-close {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        font-size: 14px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 2px 7px;
+        font-family: inherit;
+      }
+      .pin-close:hover {
+        color: var(--danger);
+        border-color: var(--danger);
+      }
+      .pin-body {
+        padding: 10px 12px;
+      }
+      .pin-section {
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px dashed var(--border);
+      }
+      .pin-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
+      .pin-section-label {
+        font-size: 9px;
+        color: var(--text-mute);
+        letter-spacing: 2px;
+        margin-bottom: 5px;
+        font-weight: 700;
+      }
+      .pin-flag {
+        font-size: 26px;
+        line-height: 1;
+        margin-bottom: 3px;
+      }
+      .pin-loc-name {
+        font-size: 16px;
+        color: var(--primary);
+        font-weight: 700;
+        letter-spacing: 1px;
+        margin-bottom: 2px;
+      }
+      .pin-loc-country {
+        font-size: 11px;
+        color: var(--text-dim);
+        letter-spacing: 0.5px;
+      }
+      .pin-data-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        font-size: 11px;
+        padding: 3px 0;
+        gap: 8px;
+      }
+      .pin-data-row .lbl {
+        color: var(--text-mute);
+        letter-spacing: 1px;
+        flex-shrink: 0;
+      }
+      .pin-data-row .val {
+        color: var(--amber);
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        word-break: break-word;
+      }
+      .pin-loading {
+        padding: 20px 14px;
+        color: var(--text-mute);
+        font-size: 11px;
+        text-align: center;
+        letter-spacing: 1px;
+      }
+      .pin-news-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 4px;
+      }
+      .pin-news-item {
+        display: block;
+        text-decoration: none;
+        padding: 7px 10px;
+        border-left: 2px solid var(--primary-dim);
+        background: rgba(0, 212, 255, 0.025);
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+      }
+      .pin-news-item:hover {
+        background: rgba(0, 212, 255, 0.06);
+        border-left-color: var(--primary);
+      }
+      .pin-news-title {
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--text);
+        margin-bottom: 3px;
+      }
+      .pin-news-meta {
+        font-size: 9px;
+        color: var(--text-mute);
+        letter-spacing: 0.8px;
+      }
+      .pin-news-source {
+        color: var(--amber);
+      }
+      .pin-loading-small {
+        color: var(--text-mute);
+        font-size: 10px;
+        font-style: italic;
+        padding: 4px 0;
+      }
+      .pin-news-empty {
+        color: var(--text-mute);
+        font-size: 10px;
+        font-style: italic;
+        padding: 4px 0;
+      }
+
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
+          grid-template-rows: 1fr 320px 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="vignette"></div>
+
+    <!-- LOGIN -->
+    <div id="login">
+      <div class="login-inner">
+        <div class="login-classified-tag">
+          // CLASSIFIED // EYES ONLY // RESTRICTED ACCESS
+        </div>
+        <h1>SAINT'S EYE</h1>
+        <div class="login-tagline">
+          A REAL-TIME GLOBAL INTELLIGENCE TERMINAL
+        </div>
+
+        <div class="login-divider"></div>
+
+        <div class="login-brief">
+          <div class="login-brief-row">
+            <span class="brief-sym">▸</span
+            ><span
+              >Multi-domain aggregation across geopolitical, financial, seismic,
+              and atmospheric streams.</span
+            >
+          </div>
+          <div class="login-brief-row">
+            <span class="brief-sym">▸</span
+            ><span
+              >Operators receive curated briefings every 30 minutes from
+              open-source signals worldwide.</span
+            >
+          </div>
+          <div class="login-brief-row">
+            <span class="brief-sym">▸</span
+            ><span
+              >This terminal is monitored. Sessions are logged, hashed, and
+              traceable.</span
+            >
+          </div>
+        </div>
+
+        <div class="login-divider"></div>
+
+        <div id="login-form">
+          <div class="login-field">
+            <label>OPERATOR ID</label>
+            <input
+              type="text"
+              id="login-user"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="enter operator id"
+            />
+          </div>
+          <div class="login-field">
+            <label>ACCESS KEY</label>
+            <input
+              type="password"
+              id="login-pass"
+              autocomplete="off"
+              placeholder="••••••••"
+            />
+          </div>
+          <div class="login-error" id="login-error">&nbsp;</div>
+          <div class="login-attempts" id="login-attempts">
+            ATTEMPTS REMAINING: 3 / 3
+          </div>
+          <button class="login-btn" id="login-btn">▸ AUTHENTICATE</button>
+        </div>
+        <div id="login-locked" style="display: none">
+          <div class="login-locked-wrap">
+            <div class="login-locked-title">⚠ ACCESS DENIED</div>
+            <div class="login-locked-text">
+              Maximum authentication attempts exceeded.<br />
+              This terminal has been locked.<br /><br />
+              Contact your system administrator.<br />
+              Incident ID: <span class="incident" id="lock-incident"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="login-footer">
+          <span class="login-dot">●</span> SECURE TUNNEL ACTIVE · TLS 1.3 ·
+          NODE-07
+        </div>
+      </div>
+    </div>
+
+    <div id="boot">
+      <div class="boot-inner">
+        <div class="boot-header">
+          <div class="left">
+            <span class="dot r"></span><span class="dot y"></span
+            ><span class="dot g"></span>
+            <span class="title">SAINT'S EYE // SECURE SHELL v1.7</span>
+          </div>
+          <div class="ts" id="boot-ts">--:--:-- UTC</div>
+        </div>
+        <div class="boot-log" id="boot-log"></div>
+      </div>
+    </div>
+
+    <div id="app">
+      <header>
+        <div class="sysname">
+          SAINT'S EYE
+          <span class="sub">// CRYNE //</span>
+        </div>
+        <div class="clocks">
+          <div class="clock">
+            <div class="label">ZULU</div>
+            <div class="time" id="clk-z">--:--:--</div>
+          </div>
+          <div class="clock">
+            <div class="label">JAKARTA</div>
+            <div class="time" id="clk-jkt">--:--:--</div>
+          </div>
+          <div class="clock">
+            <div class="label">NEW YORK</div>
+            <div class="time" id="clk-ny">--:--:--</div>
+          </div>
+          <div class="clock">
+            <div class="label">MOSCOW</div>
+            <div class="time" id="clk-mow">--:--:--</div>
+          </div>
+          <div class="clock">
+            <div class="label">BEIJING</div>
+            <div class="time" id="clk-pek">--:--:--</div>
+          </div>
+        </div>
+        <div class="header-right">
+          <span><span class="led"></span>LIVE</span>
+          <span class="classification">// UNCLASS //</span>
+          <span
+            >OPR:
+            <span style="color: var(--primary)" id="opr-id"
+              >ANON-04B7</span
+            ></span
+          >
+        </div>
+      </header>
+
+      <main>
+        <div class="col">
+          <section class="panel">
+            <div class="corner-bl"></div>
+            <div class="corner-br"></div>
+            <div class="panel-head">
+              <div class="panel-title">▸ INTEL FEED</div>
+              <div class="panel-meta">
+                <span class="dot"></span
+                ><span id="news-status">CONNECTING</span>
+              </div>
+            </div>
+            <div class="panel-body" id="news-body">
+              <div class="empty">Awaiting transmission...</div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="corner-bl"></div>
+            <div class="corner-br"></div>
+            <div class="panel-head">
+              <div class="panel-title">▸ ACTIVE ZONES</div>
+              <div class="panel-meta">
+                <span class="dot"></span><span>CLICK TO FLY</span>
+              </div>
+            </div>
+            <div class="panel-body" id="zones-body"></div>
+          </section>
+        </div>
+
+        <section class="globe-wrap">
+          <div id="globe"></div>
+          <div class="crosshair"></div>
+
+          <!-- Targeting reticle cursor (custom mouse pointer over globe) -->
+          <div id="targeting-cursor">
+            <div class="target-inner">
+              <div class="target-ring"></div>
+              <div class="target-bracket tl"></div>
+              <div class="target-bracket tr"></div>
+              <div class="target-bracket bl"></div>
+              <div class="target-bracket br"></div>
+              <div class="target-cross h"></div>
+              <div class="target-cross v"></div>
+              <div class="target-dot"></div>
+            </div>
+          </div>
+
+          <div class="globe-overlay overlay-tl">
+            <div class="big">GLOBAL OVERVIEW</div>
+            <div class="dim">PROJECTION: ORTHO // WGS84</div>
+          </div>
+          <div class="globe-overlay overlay-tr">
+            <div class="big" id="zone-count">— ZONES</div>
+            <div class="dim" id="flight-count">FLIGHTS: —</div>
+          </div>
+          <div class="globe-overlay overlay-bl">
+            <div class="dim">LEGEND</div>
+            <div class="legend-row">
+              <span style="color: var(--danger)">●</span> CONFLICT ZONE
+            </div>
+            <div class="legend-row">
+              <span style="color: var(--amber)">●</span> AIRCRAFT (SEA)
+            </div>
+          </div>
+          <div class="globe-overlay overlay-br">
+            <div class="dim">CTRL+K SEARCH // CLICK TO PIN</div>
+            <div class="big" id="lat-lon">LAT --.-- LON --.--</div>
+          </div>
+
+          <!-- Pin Popup -->
+          <div class="pin-popup" id="pin-popup">
+            <div class="pin-popup-head">
+              <span class="pin-title">▸ TARGET</span>
+              <button class="pin-close" id="pin-close" title="Close (ESC)">
+                ×
+              </button>
+            </div>
+            <div class="pin-body" id="pin-body">
+              <div class="pin-loading">Acquiring target data...</div>
+            </div>
+          </div>
+        </section>
+
+        <div class="col">
+          <section class="panel">
+            <div class="corner-bl"></div>
+            <div class="corner-br"></div>
+            <div class="panel-head">
+              <div class="panel-title">▸ WATCHLIST</div>
+              <div class="panel-meta">
+                <span class="dot"></span><span id="wl-status">CONNECTING</span>
+              </div>
+            </div>
+            <div class="panel-body" id="wl-body">
+              <div class="empty">Polling markets...</div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="corner-bl"></div>
+            <div class="corner-br"></div>
+            <div class="panel-head">
+              <div class="panel-title">▸ OSINT BRIEF</div>
+              <div class="panel-meta">
+                <span class="dot"></span
+                ><span id="brief-status">CONNECTING</span>
+              </div>
+            </div>
+            <div class="panel-body" id="brief-body">
+              <div class="brief-updated" id="brief-updated">
+                Compiling brief...
+              </div>
+              <div class="brief-row" id="b-geopol">
+                <div class="brief-label">GEOPOL</div>
+                <div class="brief-text brief-empty">Loading...</div>
+              </div>
+              <div class="brief-row" id="b-econ">
+                <div class="brief-label">ECON</div>
+                <div class="brief-text brief-empty">Loading...</div>
+              </div>
+              <div class="brief-row" id="b-natural">
+                <div class="brief-label">NATURAL</div>
+                <div class="brief-text brief-empty">Loading...</div>
+              </div>
+              <div class="brief-row" id="b-market">
+                <div class="brief-label">MARKET</div>
+                <div class="brief-text brief-empty">Loading...</div>
+              </div>
+              <div class="brief-row" id="b-weather">
+                <div class="brief-label">WEATHER</div>
+                <div class="brief-text brief-empty">Loading...</div>
+              </div>
+              <div class="brief-row" id="b-space">
+                <div class="brief-label">SPACE</div>
+                <div class="brief-text brief-empty">Loading...</div>
+              </div>
+              <div class="brief-row" id="b-intel">
+                <div class="brief-label">INTEL</div>
+                <div class="brief-text brief-empty">Loading...</div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer>
+        <div class="ticker-label">▸ LIVE FEED</div>
+        <div class="ticker-track">
+          <div class="ticker-content" id="ticker">
+            Initializing data streams... <span class="sep">◆</span>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Command Bar (Ctrl+K) -->
+    <div class="cmdbar-backdrop" id="cmdbar-backdrop"></div>
+    <div class="cmdbar" id="cmdbar">
+      <input
+        type="text"
+        class="cmdbar-input"
+        id="cmd-input"
+        placeholder="Search city or country..."
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <div class="cmdbar-hint">
+        <kbd>↑↓</kbd> NAVIGATE &nbsp; <kbd>↵</kbd> SELECT &nbsp;
+        <kbd>ESC</kbd> CLOSE
+      </div>
+      <div class="cmdbar-results" id="cmd-results">
+        <div class="cmd-empty">Loading locations...</div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/globe.gl"></script>
+    <script>
+      const CFG = {
+        refreshWatchlist: 90_000, // 1.5 min
+        refreshNews: 5 * 60_000, // 5 min
+        refreshBrief: 30 * 60_000, // 30 min
+        refreshFlights: 90_000, // 1.5 min
+      };
+
+      const ZONES = [
+        {
+          name: "UKRAINE",
+          region: "EASTERN EUROPE",
+          lat: 50.45,
+          lng: 30.52,
+          sev: "high",
+        },
+        { name: "GAZA", region: "LEVANT", lat: 31.5, lng: 34.45, sev: "high" },
+        {
+          name: "SUDAN",
+          region: "HORN OF AFRICA",
+          lat: 15.5,
+          lng: 32.55,
+          sev: "high",
+        },
+        {
+          name: "MYANMAR",
+          region: "SOUTHEAST ASIA",
+          lat: 19.76,
+          lng: 96.07,
+          sev: "high",
+        },
+        {
+          name: "DR CONGO",
+          region: "CENTRAL AFRICA",
+          lat: -1.68,
+          lng: 29.22,
+          sev: "mid",
+        },
+        {
+          name: "YEMEN",
+          region: "ARABIAN PENINSULA",
+          lat: 15.36,
+          lng: 44.19,
+          sev: "mid",
+        },
+        {
+          name: "HAITI",
+          region: "CARIBBEAN",
+          lat: 18.59,
+          lng: -72.31,
+          sev: "mid",
+        },
+        { name: "SYRIA", region: "LEVANT", lat: 33.51, lng: 36.29, sev: "low" },
+      ];
+
+      const ARC_LINES = [
+        { startLat: 38.9, startLng: -77.0, endLat: 55.75, endLng: 37.62 },
+        { startLat: 39.9, startLng: 116.4, endLat: 39.03, endLng: 125.75 },
+        { startLat: 32.08, startLng: 34.78, endLat: 35.69, endLng: 51.38 },
+        { startLat: 50.45, startLng: 30.52, endLat: 50.85, endLng: 4.35 },
+        { startLat: -6.21, startLng: 106.85, endLat: 1.35, endLng: 103.82 },
+        { startLat: 51.51, startLng: -0.13, endLat: 40.71, endLng: -74.0 },
+        { startLat: 35.69, startLng: 139.69, endLat: 37.57, endLng: 126.98 },
+      ];
+
+      // Watchlist: 3 crypto via CoinGecko + 4 metals/oil/forex via Yahoo (CORS proxy)
+      const WATCHLIST = [
+        { sym: "BTC", source: "cg", id: "bitcoin", prefix: "$", decimals: 0 },
+        { sym: "SOL", source: "cg", id: "solana", prefix: "$", decimals: 2 },
+        { sym: "XMR", source: "cg", id: "monero", prefix: "$", decimals: 2 },
+        {
+          sym: "XAU/USD",
+          source: "yahoo",
+          id: "GC=F",
+          prefix: "$",
+          decimals: 2,
+        },
+        {
+          sym: "XAG/USD",
+          source: "yahoo",
+          id: "SI=F",
+          prefix: "$",
+          decimals: 3,
+        },
+        { sym: "USOIL", source: "yahoo", id: "CL=F", prefix: "$", decimals: 2 },
+        {
+          sym: "USD/JPY",
+          source: "yahoo",
+          id: "JPY=X",
+          prefix: "",
+          decimals: 3,
+        },
+      ];
+
+      let globe;
+      let flightData = [];
+      let watchlistData = {};
+      let droppedPin = null;
+      let latestNewsItems = [];
+      let seenNewsLinks = new Set();
+      let newsFirstLoad = true;
+      let lastNewsFetchTime = 0;
+      let newsMarkers = []; // hot-news geo markers shown as green dots on globe
+
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+      function formatUTC(d) {
+        return new Intl.DateTimeFormat("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+          timeZone: "UTC",
+        }).format(d);
+      }
+
+      // Type text char-by-char into a new line element appended to parent
+      async function typeLine(parent, text, cls, charDelay = 20) {
+        const line = document.createElement("div");
+        line.className = "term-line " + (cls || "");
+        parent.appendChild(line);
+        const textSpan = document.createElement("span");
+        line.appendChild(textSpan);
+        const cursor = document.createElement("span");
+        cursor.className = "term-cursor";
+        line.appendChild(cursor);
+        parent.scrollTop = parent.scrollHeight;
+        for (const ch of text) {
+          textSpan.textContent += ch;
+          parent.scrollTop = parent.scrollHeight;
+          await sleep(charDelay + Math.random() * 10);
+        }
+        cursor.remove();
+      }
+
+      // Show a pre-rendered line instantly (used for ASCII box rows)
+      async function showLine(parent, text, cls, delay = 70) {
+        const line = document.createElement("div");
+        line.className = "term-line " + (cls || "");
+        line.textContent = text;
+        parent.appendChild(line);
+        parent.scrollTop = parent.scrollHeight;
+        await sleep(delay);
+      }
+
+      function blankLine(parent) {
+        const line = document.createElement("div");
+        line.className = "term-line";
+        line.innerHTML = "&nbsp;";
+        parent.appendChild(line);
+      }
+
+      // Render the profile box as CSS-styled card (perfectly aligned, no font width issues)
+      function renderProfileCard(parent, username, time) {
+        const card = document.createElement("div");
+        card.className = "term-card";
+
+        const title = document.createElement("div");
+        title.className = "term-card-title";
+        title.textContent = "WELCOME BACK, MS. CRYNE";
+        card.appendChild(title);
+
+        const rowsWrap = document.createElement("div");
+        rowsWrap.className = "term-card-rows";
+
+        const rowData = [
+          ["ALIAS", username.toUpperCase()],
+          ["SESSION", time + "Z"],
+          ["CLEARANCE", "UNCLASSIFIED"],
+          ["BRIEFS", "2 PENDING REVIEW"],
+          ["SENSORS", "ALL DOMAINS NOMINAL"],
+        ];
+        rowData.forEach(([lbl, val]) => {
+          const row = document.createElement("div");
+          row.className = "term-card-row";
+          const lblSpan = document.createElement("span");
+          lblSpan.className = "term-card-lbl";
+          lblSpan.textContent = lbl;
+          const valSpan = document.createElement("span");
+          valSpan.className = "term-card-val";
+          valSpan.textContent = val;
+          row.appendChild(lblSpan);
+          row.appendChild(valSpan);
+          rowsWrap.appendChild(row);
+        });
+        card.appendChild(rowsWrap);
+        parent.appendChild(card);
+        parent.scrollTop = parent.scrollHeight;
+      }
+
+      // ===== LOGIN =====
+      const ACCESS_KEY = "aerocryne";
+      const MAX_LOGIN_ATTEMPTS = 3;
+      let loginAttempts = 0;
+
+      function setupLogin() {
+        const loginEl = document.getElementById("login");
+        const userInput = document.getElementById("login-user");
+        const passInput = document.getElementById("login-pass");
+        const errorEl = document.getElementById("login-error");
+        const attemptsEl = document.getElementById("login-attempts");
+        const btn = document.getElementById("login-btn");
+        const formEl = document.getElementById("login-form");
+        const lockedEl = document.getElementById("login-locked");
+
+        function showError(msg) {
+          errorEl.textContent = msg;
+          errorEl.classList.remove("shake");
+          void errorEl.offsetWidth; // restart animation
+          errorEl.classList.add("shake");
+        }
+
+        function attempt() {
+          const user = userInput.value.trim();
+          const pass = passInput.value;
+
+          if (!user) {
+            showError("OPERATOR ID REQUIRED");
+            userInput.focus();
+            return;
+          }
+
+          if (pass === ACCESS_KEY) {
+            // Success — fade login, kick off welcome boot
+            loginEl.classList.add("hidden");
+            setTimeout(() => {
+              try {
+                loginEl.remove();
+              } catch (e) {}
+              startWelcomeBoot(user);
+            }, 600);
+          } else {
+            loginAttempts++;
+            const remaining = MAX_LOGIN_ATTEMPTS - loginAttempts;
+            passInput.value = "";
+            if (remaining <= 0) {
+              // Locked out
+              formEl.style.display = "none";
+              lockedEl.style.display = "block";
+              const incident = "LCK-" + Date.now().toString(36).toUpperCase();
+              document.getElementById("lock-incident").textContent = incident;
+            } else {
+              showError(
+                `INVALID ACCESS KEY  //  ${remaining} ATTEMPT${remaining === 1 ? "" : "S"} REMAINING`,
+              );
+              attemptsEl.textContent = `ATTEMPTS REMAINING: ${remaining} / ${MAX_LOGIN_ATTEMPTS}`;
+              passInput.focus();
+            }
+          }
+        }
+
+        btn.addEventListener("click", attempt);
+        userInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            passInput.focus();
+          }
+        });
+        passInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            attempt();
+          }
+        });
+
+        // Autofocus username
+        setTimeout(() => userInput.focus(), 100);
+      }
+
+      // ===== HACKER TERMINAL ONBOARDING =====
+      async function runHackerOnboarding(username) {
+        const log = document.getElementById("boot-log");
+        if (!log) return;
+        log.innerHTML = "";
+
+        const time = formatUTC(new Date());
+        const tsEl = document.getElementById("boot-ts");
+        if (tsEl) tsEl.textContent = time + " UTC";
+        const tsTag = `[${time}Z]`;
+
+        // 1. Auth handshake (typed)
+        await typeLine(
+          log,
+          "$ ./authenticate --operator=" + username.toLowerCase(),
+          "term-cmd",
+          22,
+        );
+        await sleep(280);
+        await typeLine(
+          log,
+          `${tsTag} Initiating secure handshake...`,
+          "term-log",
+          13,
+        );
+        await sleep(120);
+        await typeLine(
+          log,
+          `${tsTag} Tunnel established via NODE-07 (JKT-DC)`,
+          "term-log",
+          13,
+        );
+        await sleep(120);
+        await typeLine(
+          log,
+          `${tsTag} Encryption: AES-256-GCM  |  Latency: 47ms`,
+          "term-log",
+          13,
+        );
+        await sleep(120);
+        await typeLine(
+          log,
+          `${tsTag} Identity verified  →  ACCESS GRANTED`,
+          "term-ok",
+          13,
+        );
+        await sleep(500);
+
+        blankLine(log);
+
+        // 2. Loading profile
+        await typeLine(
+          log,
+          "> Loading operator profile.....",
+          "term-arrow",
+          22,
+        );
+        await sleep(550);
+
+        // 3. CSS-styled profile card (no font width issues, perfect alignment)
+        renderProfileCard(log, username, time);
+        await sleep(1200); // wait for card + row stagger animations to complete
+
+        // 4. Subsystems boot
+        blankLine(log);
+        await typeLine(
+          log,
+          "> Initializing OBSERVER subsystems...",
+          "term-arrow",
+          20,
+        );
+        await sleep(180);
+        const subsystems = [
+          "  [OK] Geospatial layers loaded",
+          "  [OK] OSINT feeds subscribed",
+          "  [OK] Orbital track online",
+          "  [OK] Market streams calibrated",
+        ];
+        for (const s of subsystems) {
+          await typeLine(log, s, "term-ok", 13);
+          await sleep(110);
+        }
+        await sleep(300);
+
+        blankLine(log);
+        await typeLine(log, "> System ready.", "term-arrow", 22);
+        await sleep(500);
+
+        blankLine(log);
+        await typeLine(log, "[ ENTERING DASHBOARD... ]", "term-finish", 28);
+        await sleep(800);
+
+        // 5. Fade to app
+        document.getElementById("boot").classList.add("hidden");
+        document.getElementById("app").classList.add("ready");
+        setTimeout(initGlobe, 200);
+      }
+
+      // Called from setupLogin after successful auth
+      function startWelcomeBoot(username) {
+        runHackerOnboarding(username);
+      }
+
+      // 1x1 dark blue pixel as globe "texture"
+      function darkPixelDataUrl(hex) {
+        const c = document.createElement("canvas");
+        c.width = 1;
+        c.height = 1;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = hex;
+        ctx.fillRect(0, 0, 1, 1);
+        return c.toDataURL();
+      }
+
+      async function initGlobe() {
+        const container = document.getElementById("globe");
+        if (typeof Globe === "undefined") {
+          console.error("Globe.gl failed to load.");
+          container.innerHTML =
+            '<div style="padding:20px;color:var(--danger);font-size:12px;">GLOBE.GL LOAD FAIL — check internet connection</div>';
+          startDataLoops();
+          return;
+        }
+
+        const darkBlue = darkPixelDataUrl("#0a1828");
+
+        globe = Globe()(container)
+          .globeImageUrl(darkBlue)
+          .backgroundColor("rgba(0,0,0,0)")
+          .atmosphereColor("#00d4ff")
+          .atmosphereAltitude(0.18)
+          .showGraticules(false)
+          .pointsData([])
+          .pointLat("lat")
+          .pointLng("lng")
+          .pointColor((d) => d.color || "#ff4d6d")
+          .pointAltitude((d) => d.alt ?? 0.01)
+          .pointRadius((d) => d.radius ?? 0.5)
+          .pointLabel(
+            (d) =>
+              `<div>${d.name || ""}<br><span style="color:#6e8a9a">${d.note || ""}</span></div>`,
+          )
+          .ringsData(ZONES)
+          .ringLat("lat")
+          .ringLng("lng")
+          .ringColor(() => (t) => `rgba(255, 77, 109, ${0.85 * (1 - t)})`)
+          .ringMaxRadius(3)
+          .ringPropagationSpeed(2)
+          .ringRepeatPeriod(1500)
+          .arcsData(ARC_LINES)
+          .arcColor(() => ["rgba(0, 212, 255, 0.08)", "rgba(0, 212, 255, 0.7)"])
+          .arcDashLength(0.4)
+          .arcDashGap(0.6)
+          .arcDashAnimateTime(3200)
+          .arcStroke(0.35)
+          .htmlElementsData([])
+          .htmlLat("lat")
+          .htmlLng("lng")
+          .htmlAltitude(0.05)
+          .htmlElement((d) => {
+            const el = document.createElement("div");
+            el.className = "globe-tooltip";
+
+            let newsHtml;
+            if (d.news === null || d.news === undefined) {
+              newsHtml = '<div class="globe-tt-loading">Loading stories</div>';
+            } else if (Array.isArray(d.news) && d.news.length > 0) {
+              const items = d.news
+                .slice(0, 3)
+                .map(
+                  (n) =>
+                    `<div class="globe-tt-news-item">${escapeHtml(n.title)}</div>`,
+                )
+                .join("");
+              newsHtml = `<div class="globe-tt-news-list">${items}</div>`;
+            } else {
+              newsHtml = '<div class="globe-tt-empty">No active stories</div>';
+            }
+
+            el.innerHTML = `
+        <div class="globe-tt-name"><span class="globe-tt-flag">${d.flag || ""}</span>${escapeHtml(d.name)}</div>
+        ${newsHtml}
+      `;
+            return el;
+          });
+
+        // Performance: cap devicePixelRatio so retina displays don't kill GPU
+        try {
+          globe
+            .renderer()
+            .setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+        } catch (e) {
+          /* older globe.gl versions */
+        }
+
+        globe.controls().autoRotate = true;
+        globe.controls().autoRotateSpeed = 0.4;
+        globe.controls().enableDamping = true;
+
+        const onResize = () => {
+          globe.width(container.clientWidth);
+          globe.height(container.clientHeight);
+        };
+        onResize();
+        window.addEventListener("resize", onResize);
+
+        globe.onZoom((pov) => {
+          document.getElementById("lat-lon").textContent =
+            `LAT ${pov.lat.toFixed(2)} LON ${pov.lng.toFixed(2)}`;
+        });
+
+        // Click anywhere on globe to drop a pin
+        globe.onGlobeClick(({ lat, lng }) => {
+          flyToAndPin(lat, lng, false);
+        });
+
+        // Click a point: if it's a news marker, highlight that article in the panel
+        globe.onPointClick((point) => {
+          if (
+            point &&
+            point.type === "news" &&
+            typeof point.newsIndex === "number"
+          ) {
+            highlightNewsItem(point.newsIndex);
+          }
+        });
+
+        document.getElementById("zone-count").textContent =
+          `${ZONES.length} ZONES`;
+        renderZonesList();
+        refreshGlobePoints();
+        startDataLoops();
+
+        // Country outlines: subtle fill + cyan stroke, slight altitude to avoid z-fighting
+        try {
+          const r = await fetch(
+            "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson",
+          );
+          if (r.ok) {
+            const geo = await r.json();
+            globe
+              .polygonsData(geo.features)
+              .polygonCapColor(() => "rgba(0, 200, 240, 0.08)")
+              .polygonSideColor(() => "rgba(0, 0, 0, 0)")
+              .polygonStrokeColor(() => "rgba(0, 212, 255, 0.55)")
+              .polygonAltitude(0.003)
+              .polygonsTransitionDuration(0);
+
+            // Hover a country → floating tooltip anchored to its centroid with hot news
+            globe.onPolygonHover((polygon) => {
+              // Targeting cursor lock-on state
+              const tc = document.getElementById("targeting-cursor");
+              if (polygon) tc?.classList.add("locked");
+              else tc?.classList.remove("locked");
+
+              if (!polygon) {
+                globe.htmlElementsData([]);
+                return;
+              }
+              const p = polygon.properties || {};
+              const name = p.NAME || p.ADMIN || p.NAME_LONG;
+              const cca2 = (p.ISO_A2 || p.ISO_A2_EH || "").toUpperCase();
+              if (!name) {
+                globe.htmlElementsData([]);
+                return;
+              }
+
+              // Find centroid + flag from LOCATION_LIST
+              const loc = LOCATION_LIST.find(
+                (l) =>
+                  l.type === "country" &&
+                  l.name.toLowerCase() === name.toLowerCase(),
+              );
+              if (!loc) {
+                globe.htmlElementsData([]);
+                return;
+              }
+
+              // Show tooltip immediately with cached news (or loading state)
+              const cached =
+                cca2 && countryNewsCache[cca2]
+                  ? countryNewsCache[cca2].items
+                  : null;
+              const data = {
+                lat: loc.lat,
+                lng: loc.lng,
+                name: name.toUpperCase(),
+                flag: loc.flag || "",
+                cca2,
+                news: cached, // null/undefined = "loading", [] = "no stories", [...] = items
+              };
+              globe.htmlElementsData([data]);
+
+              // Background-fetch if not cached, update tooltip when ready (only if still hovering same country)
+              if (!cached && cca2 && cca2.length === 2) {
+                fetchCountryNews(cca2).then((items) => {
+                  const current = globe.htmlElementsData();
+                  if (current.length && current[0].cca2 === cca2) {
+                    globe.htmlElementsData([{ ...current[0], news: items }]);
+                  }
+                });
+              }
+            });
+          }
+        } catch (e) {
+          console.warn("countries geojson fail", e);
+        }
+
+        setupTargetingCursor();
+      }
+
+      // Targeting reticle cursor — tracks mouse position, hides native cursor
+      function setupTargetingCursor() {
+        const wrap = document.querySelector(".globe-wrap");
+        const cursor = document.getElementById("targeting-cursor");
+        if (!wrap || !cursor) return;
+
+        let pendingX = 0,
+          pendingY = 0;
+        let rafScheduled = false;
+
+        wrap.addEventListener("mousemove", (e) => {
+          const rect = wrap.getBoundingClientRect();
+          pendingX = e.clientX - rect.left;
+          pendingY = e.clientY - rect.top;
+          if (!rafScheduled) {
+            rafScheduled = true;
+            requestAnimationFrame(() => {
+              // Position cursor centered on (x, y) — offset by half its size (28px)
+              cursor.style.transform = `translate(${pendingX - 28}px, ${pendingY - 28}px)`;
+              rafScheduled = false;
+            });
+          }
+        });
+
+        wrap.addEventListener("mouseenter", () => cursor.classList.add("show"));
+        wrap.addEventListener("mouseleave", () => {
+          cursor.classList.remove("show");
+          cursor.classList.remove("locked");
+        });
+      }
+
+      function refreshGlobePoints() {
+        if (!globe) return;
+        const conflicts = ZONES.map((z) => ({
+          ...z,
+          color: "#ff4d6d",
+          alt: 0.01,
+          radius: 0.55,
+          note: z.region,
+        }));
+        const flights = flightData.map((f) => ({
+          name: `FLT ${f.callsign || "???"}`,
+          note: `ALT ${Math.round(f.alt || 0)} ft`,
+          lat: f.lat,
+          lng: f.lng,
+          color: "#ffb84d",
+          alt: 0.005,
+          radius: 0.2,
+        }));
+        const pin = droppedPin
+          ? [
+              {
+                name: "TARGET",
+                note: `${droppedPin.lat.toFixed(2)}, ${droppedPin.lng.toFixed(2)}`,
+                lat: droppedPin.lat,
+                lng: droppedPin.lng,
+                color: "#ffffff",
+                alt: 0.02,
+                radius: 0.45,
+              },
+            ]
+          : [];
+        const news = newsMarkers.map((m) => ({
+          name: `▸ HOT NEWS`,
+          note: `${m.locationName.toUpperCase()} // ${m.title.length > 60 ? m.title.substring(0, 57) + "..." : m.title}`,
+          lat: m.lat,
+          lng: m.lng,
+          color: "#4dffa6",
+          alt: 0.018,
+          radius: 0.42,
+          type: "news",
+          newsIndex: m.newsIndex,
+        }));
+        globe.pointsData([...conflicts, ...flights, ...pin, ...news]);
+      }
+
+      function renderZonesList() {
+        const body = document.getElementById("zones-body");
+        body.innerHTML = ZONES.map(
+          (z, i) => `
+    <div class="zone-item" data-i="${i}">
+      <div class="zh">
+        <span class="zname">${z.name}</span>
+        <span class="zsev sev-${z.sev}">${z.sev.toUpperCase()}</span>
+      </div>
+      <div class="zmeta">${z.region} // ${z.lat.toFixed(2)}, ${z.lng.toFixed(2)}</div>
+    </div>
+  `,
+        ).join("");
+        body.querySelectorAll(".zone-item").forEach((el) => {
+          el.onclick = () => {
+            const z = ZONES[+el.dataset.i];
+            if (globe) {
+              globe.controls().autoRotate = false;
+              globe.pointOfView(
+                { lat: z.lat, lng: z.lng, altitude: 1.4 },
+                1400,
+              );
+              setTimeout(() => {
+                if (globe) globe.controls().autoRotate = true;
+              }, 10000);
+            }
+          };
+        });
+      }
+
+      function fmtTime(date, tz) {
+        return new Intl.DateTimeFormat("en-GB", {
+          timeZone: tz,
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        }).format(date);
+      }
+      function updateClocks() {
+        const now = new Date();
+        document.getElementById("clk-z").textContent = fmtTime(now, "UTC");
+        document.getElementById("clk-jkt").textContent = fmtTime(
+          now,
+          "Asia/Jakarta",
+        );
+        document.getElementById("clk-ny").textContent = fmtTime(
+          now,
+          "America/New_York",
+        );
+        document.getElementById("clk-mow").textContent = fmtTime(
+          now,
+          "Europe/Moscow",
+        );
+        document.getElementById("clk-mow").textContent = fmtTime(
+          now,
+          "Europe/Moscow",
+        );
+        document.getElementById("clk-pek").textContent = fmtTime(
+          now,
+          "Asia/Shanghai",
+        );
+      }
+      setInterval(updateClocks, 1000);
+      updateClocks();
+
+      // ===== WATCHLIST =====
+      // CORS proxies (rotates on failure)
+      const CORS_PROXIES = [
+        (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+        (url) =>
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      ];
+
+      async function fetchYahooQuote(symbol) {
+        const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=2d`;
+        let lastErr;
+        for (const wrap of CORS_PROXIES) {
+          try {
+            const r = await fetch(wrap(yUrl));
+            if (!r.ok) {
+              lastErr = `HTTP ${r.status}`;
+              continue;
+            }
+            const data = await r.json();
+            const res = data?.chart?.result?.[0];
+            if (!res) {
+              lastErr = "no result";
+              continue;
+            }
+            const meta = res.meta;
+            const price = meta.regularMarketPrice;
+            const prev = meta.chartPreviousClose ?? meta.previousClose;
+            const change = prev ? ((price - prev) / prev) * 100 : 0;
+            return { price, change };
+          } catch (e) {
+            lastErr = e.message;
+          }
+        }
+        throw new Error("all proxies failed: " + lastErr);
+      }
+
+      async function fetchCoinGecko(ids) {
+        const r = await fetch(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(",")}&vs_currencies=usd&include_24hr_change=true`,
+        );
+        if (!r.ok) throw new Error("coingecko HTTP " + r.status);
+        return r.json();
+      }
+
+      function renderWatchlist() {
+        const body = document.getElementById("wl-body");
+        body.innerHTML = WATCHLIST.map((w) => {
+          const d = watchlistData[w.sym];
+          if (!d || d.error) {
+            return `<div class="wl-row">
+        <span class="wl-sym">${w.sym}</span>
+        <span class="wl-loading">— offline —</span>
+        <span></span>
+      </div>`;
+          }
+          if (d.loading) {
+            return `<div class="wl-row">
+        <span class="wl-sym">${w.sym}</span>
+        <span class="wl-loading">loading...</span>
+        <span></span>
+      </div>`;
+          }
+          const cls = d.change >= 0 ? "up" : "down";
+          const arrow = d.change >= 0 ? "▲" : "▼";
+          const priceStr =
+            d.price >= 1000
+              ? d.price.toLocaleString("en-US", {
+                  maximumFractionDigits: w.decimals,
+                })
+              : d.price.toLocaleString("en-US", {
+                  minimumFractionDigits: w.decimals,
+                  maximumFractionDigits: w.decimals,
+                });
+          return `<div class="wl-row">
+      <span class="wl-sym">${w.sym}</span>
+      <span class="wl-price">${w.prefix}${priceStr}</span>
+      <span class="wl-change ${cls}">${arrow} ${Math.abs(d.change).toFixed(2)}%</span>
+    </div>`;
+        }).join("");
+      }
+
+      async function fetchWatchlist() {
+        const setStatus = (s) =>
+          (document.getElementById("wl-status").textContent = s);
+        setStatus("SYNCING");
+
+        // Mark all loading
+        WATCHLIST.forEach((w) => {
+          watchlistData[w.sym] = { loading: true };
+        });
+        renderWatchlist();
+
+        // Fetch CoinGecko (batched, 1 call)
+        const cgItems = WATCHLIST.filter((w) => w.source === "cg");
+        fetchCoinGecko(cgItems.map((w) => w.id))
+          .then((data) => {
+            cgItems.forEach((w) => {
+              const d = data[w.id];
+              if (d && d.usd != null) {
+                watchlistData[w.sym] = {
+                  price: d.usd,
+                  change: d.usd_24h_change || 0,
+                };
+              } else {
+                watchlistData[w.sym] = { error: true };
+              }
+            });
+            renderWatchlist();
+          })
+          .catch((e) => {
+            console.warn("crypto batch fail", e);
+            cgItems.forEach((w) => (watchlistData[w.sym] = { error: true }));
+            renderWatchlist();
+          });
+
+        // Fetch Yahoo items (parallel)
+        const yhItems = WATCHLIST.filter((w) => w.source === "yahoo");
+        let okCount = 0;
+        await Promise.all(
+          yhItems.map(async (w) => {
+            try {
+              const q = await fetchYahooQuote(w.id);
+              watchlistData[w.sym] = { price: q.price, change: q.change };
+              okCount++;
+            } catch (e) {
+              console.warn(w.sym + " fail:", e.message);
+              watchlistData[w.sym] = { error: true };
+            }
+            renderWatchlist();
+          }),
+        );
+
+        setStatus(okCount > 0 ? "LIVE" : "PARTIAL");
+      }
+
+      // ===== NEWS =====
+      function relativeTime(ms) {
+        if (!ms || isNaN(ms)) return "";
+        const diff = Date.now() - ms;
+        const sec = Math.floor(diff / 1000);
+        if (sec < 30) return "just now";
+        if (sec < 60) return `${sec}s ago`;
+        const min = Math.floor(sec / 60);
+        if (min < 60) return min === 1 ? "1 min ago" : `${min} mins ago`;
+        const hr = Math.floor(min / 60);
+        if (hr < 24) return hr === 1 ? "1 hr ago" : `${hr} hrs ago`;
+        const day = Math.floor(hr / 24);
+        if (day < 7) return day === 1 ? "1 day ago" : `${day} days ago`;
+        const wk = Math.floor(day / 7);
+        if (wk < 5) return wk === 1 ? "1 week ago" : `${wk} weeks ago`;
+        const mo = Math.floor(day / 30);
+        if (mo < 12) return mo === 1 ? "1 month ago" : `${mo} months ago`;
+        const yr = Math.floor(day / 365);
+        return yr === 1 ? "1 year ago" : `${yr} years ago`;
+      }
+
+      function tickNewsTimes() {
+        document.querySelectorAll(".news-item").forEach((el) => {
+          const t = parseInt(el.dataset.time);
+          if (!isNaN(t)) {
+            const timeEl = el.querySelector(".news-time");
+            if (timeEl) timeEl.textContent = relativeTime(t);
+          }
+        });
+      }
+      setInterval(tickNewsTimes, 30_000);
+
+      async function fetchNews() {
+        const setStatus = (s) =>
+          (document.getElementById("news-status").textContent = s);
+        try {
+          setStatus("SYNCING");
+          const url =
+            "https://api.rss2json.com/v1/api.json?rss_url=" +
+            encodeURIComponent("http://feeds.bbci.co.uk/news/world/rss.xml");
+          const r = await fetch(url);
+          const data = await r.json();
+          const items = (data.items || []).slice(0, 12);
+          latestNewsItems = items;
+
+          // Detect new items (skip on first load — everything would be "new")
+          const newLinks = new Set();
+          if (!newsFirstLoad) {
+            items.forEach((it) => {
+              if (it.link && !seenNewsLinks.has(it.link)) {
+                newLinks.add(it.link);
+              }
+            });
+          }
+          items.forEach((it) => {
+            if (it.link) seenNewsLinks.add(it.link);
+          });
+
+          const html =
+            items
+              .map((it, idx) => {
+                const ts = new Date(it.pubDate).getTime();
+                const link = it.link || "#";
+                const isNew = newLinks.has(it.link);
+                return `<a class="news-item${isNew ? " is-new" : ""}" data-news-idx="${idx}" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" data-time="${ts}">
+        <div class="meta"><span>BBC // WORLD</span><span class="news-time">${relativeTime(ts)}</span></div>
+        <div class="title">${escapeHtml(it.title)}</div>
+      </a>`;
+              })
+              .join("") || '<div class="empty">No items</div>';
+          document.getElementById("news-body").innerHTML = html;
+
+          lastNewsFetchTime = Date.now();
+          newsFirstLoad = false;
+          tickNewsMeta();
+          updateTicker(items.map((i) => i.title));
+
+          // Geo-match headlines → green dots on globe
+          refreshNewsMarkers();
+        } catch (e) {
+          setStatus("OFFLINE");
+          lastNewsFetchTime = 0;
+          console.warn("news fail", e);
+        }
+      }
+
+      // Match each news headline to a known country/city → green markers on globe
+      function geoMatchNews() {
+        const items = latestNewsItems || [];
+        if (!items.length || !LOCATION_LIST.length) return [];
+
+        // Search priority: city > capital > country (more specific first)
+        const cities = LOCATION_LIST.filter((l) => l.type === "city");
+        const capitals = LOCATION_LIST.filter((l) => l.type === "capital");
+        const countries = LOCATION_LIST.filter((l) => l.type === "country");
+        const ordered = [...cities, ...capitals, ...countries];
+
+        const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const matches = [];
+        items.forEach((item, idx) => {
+          if (!item.title) return;
+          for (const loc of ordered) {
+            // Skip short names (≤3 chars) → too noisy as substrings
+            if (loc.name.length < 4) continue;
+            const regex = new RegExp(`\\b${escapeRegex(loc.name)}\\b`, "i");
+            if (regex.test(item.title)) {
+              matches.push({
+                lat: loc.lat,
+                lng: loc.lng,
+                newsIndex: idx,
+                title: item.title,
+                locationName: loc.name,
+                locationType: loc.type,
+              });
+              break; // first match wins
+            }
+          }
+        });
+        return matches;
+      }
+
+      function refreshNewsMarkers() {
+        newsMarkers = geoMatchNews();
+        refreshGlobePoints();
+      }
+
+      // Called from globe.onPointClick when user clicks a green news dot
+      function highlightNewsItem(idx) {
+        const el = document.querySelector(`.news-item[data-news-idx="${idx}"]`);
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.remove("is-highlighted");
+        void el.offsetWidth; // force reflow → restart animation
+        el.classList.add("is-highlighted");
+        setTimeout(() => el.classList.remove("is-highlighted"), 3000);
+      }
+
+      function tickNewsMeta() {
+        if (!lastNewsFetchTime) return;
+        const ago = Math.floor((Date.now() - lastNewsFetchTime) / 1000);
+        let txt;
+        if (ago < 10) txt = "JUST NOW";
+        else if (ago < 60) txt = ago + "s AGO";
+        else txt = Math.floor(ago / 60) + "m AGO";
+        const el = document.getElementById("news-status");
+        if (el) el.textContent = txt;
+      }
+      setInterval(tickNewsMeta, 15_000);
+
+      // ===== OSINT BRIEF (aggregates multiple sources, updates every 30 min) =====
+      function setBriefRow(id, text, label) {
+        const row = document.getElementById(id);
+        if (!row) return;
+        const textEl = row.querySelector(".brief-text");
+        if (textEl) {
+          textEl.textContent = text;
+          textEl.classList.remove("brief-empty");
+        }
+        if (label) {
+          const labelEl = row.querySelector(".brief-label");
+          if (labelEl) labelEl.textContent = label;
+        }
+      }
+
+      async function fetchBrief() {
+        const setStatus = (s) =>
+          (document.getElementById("brief-status").textContent = s);
+        setStatus("SYNCING");
+
+        const today = new Date();
+        const mm = String(today.getMonth() + 1).padStart(2, "0");
+        const dd = String(today.getDate()).padStart(2, "0");
+
+        // Parallel fetches — all free, no key
+        const [quakeData, wxBandung, swpcKp, wikiOnThisDay] = await Promise.all(
+          [
+            fetch(
+              "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson",
+            )
+              .then((r) => r.json())
+              .catch(() => null),
+            fetch(
+              "https://api.open-meteo.com/v1/forecast?latitude=-6.91&longitude=107.61&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto",
+            )
+              .then((r) => r.json())
+              .catch(() => null),
+            fetch(
+              "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json",
+            )
+              .then((r) => r.json())
+              .catch(() => null),
+            fetch(
+              `https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/${mm}/${dd}`,
+            )
+              .then((r) => r.json())
+              .catch(() => null),
+          ],
+        );
+
+        // GEOPOL — top BBC news
+        if (latestNewsItems && latestNewsItems.length) {
+          setBriefRow("b-geopol", latestNewsItems[0].title);
+        } else {
+          setBriefRow("b-geopol", "No headlines available");
+        }
+
+        // ECON — biggest mover from watchlist
+        const movers = Object.entries(watchlistData).filter(
+          ([_, d]) =>
+            d && !d.error && !d.loading && d.change != null && !isNaN(d.change),
+        );
+        if (movers.length) {
+          movers.sort((a, b) => Math.abs(b[1].change) - Math.abs(a[1].change));
+          const [sym, d] = movers[0];
+          const arrow = d.change >= 0 ? "▲" : "▼";
+          setBriefRow(
+            "b-econ",
+            `${sym} ${arrow} ${Math.abs(d.change).toFixed(2)}% in 24h — biggest mover`,
+          );
+        } else {
+          setBriefRow("b-econ", "Markets steady, no significant moves");
+        }
+
+        // NATURAL — biggest earthquake last 24h
+        if (quakeData?.features?.length) {
+          const top = [...quakeData.features].sort(
+            (a, b) => b.properties.mag - a.properties.mag,
+          )[0];
+          const mag = top.properties.mag.toFixed(1);
+          const place = top.properties.place || "unknown location";
+          setBriefRow("b-natural", `M${mag} earthquake — ${place}`);
+        } else {
+          setBriefRow("b-natural", "No significant seismic events past 24h");
+        }
+
+        // MARKET — secondary financial info (gold + forex)
+        const gold = watchlistData["XAU/USD"];
+        const usdjpy = watchlistData["USD/JPY"];
+        const oil = watchlistData["USOIL"];
+        const marketBits = [];
+        if (gold?.price) marketBits.push(`Gold $${gold.price.toFixed(0)}/oz`);
+        if (oil?.price) marketBits.push(`Oil $${oil.price.toFixed(2)}/bbl`);
+        if (usdjpy?.price)
+          marketBits.push(`USD/JPY ${usdjpy.price.toFixed(2)}`);
+        setBriefRow(
+          "b-market",
+          marketBits.length ? marketBits.join(" · ") : "Loading market data...",
+        );
+
+        // WEATHER — Bandung
+        if (wxBandung?.current) {
+          const c = wxBandung.current;
+          const wInfo = WEATHER_CODES[c.weather_code] || { text: "unknown" };
+          const desc = wInfo.text.toLowerCase();
+          setBriefRow(
+            "b-weather",
+            `Bandung ${c.temperature_2m}°C ${desc}, ${c.relative_humidity_2m}% humidity, wind ${c.wind_speed_10m} km/h`,
+          );
+        } else {
+          setBriefRow("b-weather", "No weather data");
+        }
+
+        // SPACE — Kp index brief
+        if (Array.isArray(swpcKp) && swpcKp.length > 1) {
+          const latest = swpcKp[swpcKp.length - 1];
+          const kp = parseFloat(latest[1]);
+          if (!isNaN(kp)) {
+            let cond;
+            if (kp < 3) cond = "quiet";
+            else if (kp < 5) cond = "unsettled";
+            else if (kp < 6) cond = "G1 minor storm";
+            else if (kp < 7) cond = "G2 moderate storm";
+            else cond = "major geomagnetic storm";
+            setBriefRow("b-space", `Kp ${kp.toFixed(2)} — ${cond}`);
+          } else {
+            setBriefRow("b-space", "No data");
+          }
+        } else {
+          setBriefRow("b-space", "NOAA feed unavailable");
+        }
+
+        // INTEL — On this day in history
+        if (wikiOnThisDay?.events?.length) {
+          // Prefer 20th century onward for more relevant events
+          let candidates = wikiOnThisDay.events.filter((e) => e.year >= 1900);
+          if (candidates.length < 3) candidates = wikiOnThisDay.events;
+          // Pick a random one from top 15
+          const pool = candidates.slice(0, 15);
+          const pick = pool[Math.floor(Math.random() * pool.length)];
+          if (pick) {
+            // Truncate if too long
+            let text = pick.text || "";
+            if (text.length > 140) text = text.substring(0, 137) + "...";
+            setBriefRow("b-intel", `${pick.year}: ${text}`);
+          }
+        } else {
+          setBriefRow("b-intel", "On this day data unavailable");
+        }
+
+        // Update timestamp
+        const tStr = new Intl.DateTimeFormat("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+          timeZone: "UTC",
+        }).format(new Date());
+        document.getElementById("brief-updated").textContent =
+          `▸ BRIEF COMPILED ${tStr}Z — UPDATES EVERY 30 MIN`;
+
+        setStatus("LIVE");
+      }
+
+      // ===== FLIGHTS =====
+      async function fetchFlights() {
+        const baseUrls = [
+          "https://opendata.adsb.fi/api/v2/lat/-6.91/lon/107.61/dist/250",
+          "https://api.adsb.lol/v2/lat/-6.91/lon/107.61/dist/250",
+        ];
+        // Try direct first, then via CORS proxies (needed when running from file:// or strict CORS)
+        const attempts = [];
+        for (const url of baseUrls) {
+          attempts.push(url);
+          attempts.push("https://corsproxy.io/?url=" + encodeURIComponent(url));
+          attempts.push(
+            "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
+          );
+        }
+        for (const url of attempts) {
+          try {
+            const r = await fetch(url);
+            if (!r.ok) continue;
+            const data = await r.json();
+            const list = data.ac || [];
+            flightData = list
+              .filter((a) => a.lat != null && a.lon != null)
+              .slice(0, 80)
+              .map((a) => ({
+                callsign: (a.flight || "").trim(),
+                lat: a.lat,
+                lng: a.lon,
+                alt: a.alt_baro || 0,
+              }));
+            document.getElementById("flight-count").textContent =
+              `FLIGHTS: ${flightData.length} (SEA)`;
+            refreshGlobePoints();
+            return;
+          } catch (e) {
+            // try next attempt silently
+          }
+        }
+        document.getElementById("flight-count").textContent =
+          "FLIGHTS: OFFLINE";
+        console.warn("all flight endpoints failed");
+      }
+
+      function escapeHtml(s) {
+        return String(s).replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      }
+      function approximateRegion(lat, lng) {
+        if (lat > 30 && lng > -10 && lng < 60) return "EUROPE";
+        if (lat > 10 && lat < 55 && lng >= 60 && lng < 150) return "ASIA";
+        if (lat < 10 && lat > -10 && lng > 95 && lng < 141)
+          return "INDONESIA / SEA";
+        if (lat > 15 && lng > -130 && lng < -60) return "NORTH AMERICA";
+        if (lat < 15 && lat > -55 && lng > -85 && lng < -35)
+          return "SOUTH AMERICA";
+        if (lat < 35 && lat > -35 && lng > -20 && lng < 50) return "AFRICA";
+        if (lat < -10 && lng > 110 && lng < 160) return "OCEANIA";
+        return "OPEN OCEAN";
+      }
+
+      let tickerHeadlines = ["Stand by for incoming transmissions..."];
+      function updateTicker(headlines) {
+        if (headlines) tickerHeadlines = headlines;
+        const zoneBits = ZONES.map((z) => `[${z.sev.toUpperCase()}] ${z.name}`);
+        const all = [...tickerHeadlines, ...zoneBits];
+        const txt = all
+          .map((t) => escapeHtml(t))
+          .join(' <span class="sep">◆</span> ');
+        document.getElementById("ticker").innerHTML =
+          txt +
+          ' <span class="sep">◆</span> ' +
+          txt +
+          ' <span class="sep">◆</span> ';
+      }
+
+      function startDataLoops() {
+        fetchWatchlist();
+        setInterval(fetchWatchlist, CFG.refreshWatchlist);
+        fetchNews();
+        setInterval(fetchNews, CFG.refreshNews);
+        fetchFlights();
+        setInterval(fetchFlights, CFG.refreshFlights);
+        // Brief depends on watchlist + news being loaded; delay first call 6s
+        setTimeout(() => {
+          fetchBrief();
+          setInterval(fetchBrief, CFG.refreshBrief);
+        }, 6000);
+      }
+
+      // ===== LOCATIONS LIST (for command bar) =====
+      let LOCATION_LIST = [];
+
+      async function loadLocations() {
+        // Bootstrap with hardcoded list immediately so search works even before fetch returns
+        const extras = [
+          {
+            name: "New York",
+            country: "United States",
+            flag: "🇺🇸",
+            lat: 40.71,
+            lng: -74.0,
+          },
+          {
+            name: "Los Angeles",
+            country: "United States",
+            flag: "🇺🇸",
+            lat: 34.05,
+            lng: -118.24,
+          },
+          {
+            name: "Chicago",
+            country: "United States",
+            flag: "🇺🇸",
+            lat: 41.88,
+            lng: -87.63,
+          },
+          {
+            name: "San Francisco",
+            country: "United States",
+            flag: "🇺🇸",
+            lat: 37.77,
+            lng: -122.42,
+          },
+          {
+            name: "Miami",
+            country: "United States",
+            flag: "🇺🇸",
+            lat: 25.76,
+            lng: -80.19,
+          },
+          {
+            name: "Seattle",
+            country: "United States",
+            flag: "🇺🇸",
+            lat: 47.61,
+            lng: -122.33,
+          },
+          {
+            name: "Shanghai",
+            country: "China",
+            flag: "🇨🇳",
+            lat: 31.23,
+            lng: 121.47,
+          },
+          {
+            name: "Hong Kong",
+            country: "China",
+            flag: "🇨🇳",
+            lat: 22.32,
+            lng: 114.17,
+          },
+          {
+            name: "Shenzhen",
+            country: "China",
+            flag: "🇨🇳",
+            lat: 22.54,
+            lng: 114.05,
+          },
+          {
+            name: "Mumbai",
+            country: "India",
+            flag: "🇮🇳",
+            lat: 19.08,
+            lng: 72.88,
+          },
+          {
+            name: "Bangalore",
+            country: "India",
+            flag: "🇮🇳",
+            lat: 12.97,
+            lng: 77.59,
+          },
+          {
+            name: "Istanbul",
+            country: "Turkey",
+            flag: "🇹🇷",
+            lat: 41.01,
+            lng: 28.98,
+          },
+          {
+            name: "Rio de Janeiro",
+            country: "Brazil",
+            flag: "🇧🇷",
+            lat: -22.91,
+            lng: -43.17,
+          },
+          {
+            name: "São Paulo",
+            country: "Brazil",
+            flag: "🇧🇷",
+            lat: -23.55,
+            lng: -46.63,
+          },
+          { name: "Dubai", country: "UAE", flag: "🇦🇪", lat: 25.2, lng: 55.27 },
+          {
+            name: "Sydney",
+            country: "Australia",
+            flag: "🇦🇺",
+            lat: -33.87,
+            lng: 151.21,
+          },
+          {
+            name: "Melbourne",
+            country: "Australia",
+            flag: "🇦🇺",
+            lat: -37.81,
+            lng: 144.96,
+          },
+          {
+            name: "Bandung",
+            country: "Indonesia",
+            flag: "🇮🇩",
+            lat: -6.91,
+            lng: 107.61,
+          },
+          {
+            name: "Surabaya",
+            country: "Indonesia",
+            flag: "🇮🇩",
+            lat: -7.25,
+            lng: 112.75,
+          },
+          {
+            name: "Medan",
+            country: "Indonesia",
+            flag: "🇮🇩",
+            lat: 3.59,
+            lng: 98.67,
+          },
+          {
+            name: "Bali (Denpasar)",
+            country: "Indonesia",
+            flag: "🇮🇩",
+            lat: -8.65,
+            lng: 115.22,
+          },
+          {
+            name: "Yogyakarta",
+            country: "Indonesia",
+            flag: "🇮🇩",
+            lat: -7.8,
+            lng: 110.36,
+          },
+          {
+            name: "Osaka",
+            country: "Japan",
+            flag: "🇯🇵",
+            lat: 34.69,
+            lng: 135.5,
+          },
+          {
+            name: "Kyoto",
+            country: "Japan",
+            flag: "🇯🇵",
+            lat: 35.01,
+            lng: 135.77,
+          },
+          {
+            name: "Toronto",
+            country: "Canada",
+            flag: "🇨🇦",
+            lat: 43.65,
+            lng: -79.38,
+          },
+          {
+            name: "Vancouver",
+            country: "Canada",
+            flag: "🇨🇦",
+            lat: 49.28,
+            lng: -123.12,
+          },
+          {
+            name: "Montreal",
+            country: "Canada",
+            flag: "🇨🇦",
+            lat: 45.5,
+            lng: -73.57,
+          },
+          {
+            name: "Frankfurt",
+            country: "Germany",
+            flag: "🇩🇪",
+            lat: 50.11,
+            lng: 8.68,
+          },
+          {
+            name: "Munich",
+            country: "Germany",
+            flag: "🇩🇪",
+            lat: 48.14,
+            lng: 11.58,
+          },
+          {
+            name: "Manchester",
+            country: "United Kingdom",
+            flag: "🇬🇧",
+            lat: 53.48,
+            lng: -2.24,
+          },
+          {
+            name: "Edinburgh",
+            country: "United Kingdom",
+            flag: "🇬🇧",
+            lat: 55.95,
+            lng: -3.19,
+          },
+          {
+            name: "Barcelona",
+            country: "Spain",
+            flag: "🇪🇸",
+            lat: 41.39,
+            lng: 2.17,
+          },
+          {
+            name: "Milan",
+            country: "Italy",
+            flag: "🇮🇹",
+            lat: 45.46,
+            lng: 9.19,
+          },
+          {
+            name: "Casablanca",
+            country: "Morocco",
+            flag: "🇲🇦",
+            lat: 33.57,
+            lng: -7.59,
+          },
+          {
+            name: "Cape Town",
+            country: "South Africa",
+            flag: "🇿🇦",
+            lat: -33.92,
+            lng: 18.42,
+          },
+        ];
+        extras.forEach((e) => LOCATION_LIST.push({ ...e, type: "city" }));
+
+        // Fetch from REST Countries for full country list + capitals
+        try {
+          const r = await fetch(
+            "https://restcountries.com/v3.1/all?fields=name,capital,capitalInfo,latlng,cca2,flag",
+          );
+          if (!r.ok) return;
+          const data = await r.json();
+          data.forEach((c) => {
+            const name = c?.name?.common;
+            if (!name) return;
+            const flag = c.flag || "🏳";
+            if (c.latlng && c.latlng.length === 2) {
+              LOCATION_LIST.push({
+                name,
+                type: "country",
+                flag,
+                lat: c.latlng[0],
+                lng: c.latlng[1],
+              });
+            }
+            if (
+              c.capital &&
+              c.capital.length > 0 &&
+              c?.capitalInfo?.latlng?.length === 2
+            ) {
+              LOCATION_LIST.push({
+                name: c.capital[0],
+                type: "capital",
+                flag,
+                country: name,
+                lat: c.capitalInfo.latlng[0],
+                lng: c.capitalInfo.latlng[1],
+              });
+            }
+          });
+        } catch (e) {
+          console.warn("locations fetch fail", e);
+        }
+
+        // Re-run news geo-matching now that full location DB is loaded
+        // (in case fetchNews fired before this resolved)
+        if (
+          latestNewsItems &&
+          latestNewsItems.length &&
+          typeof refreshNewsMarkers === "function"
+        ) {
+          refreshNewsMarkers();
+        }
+      }
+
+      // ===== COMMAND BAR (Ctrl+K) =====
+      function setupCommandBar() {
+        const bar = document.getElementById("cmdbar");
+        const backdrop = document.getElementById("cmdbar-backdrop");
+        const input = document.getElementById("cmd-input");
+        const results = document.getElementById("cmd-results");
+        let activeIdx = 0;
+        let currentResults = [];
+
+        function open() {
+          bar.classList.add("open");
+          backdrop.classList.add("open");
+          input.value = "";
+          activeIdx = 0;
+          renderResults("");
+          setTimeout(() => input.focus(), 50);
+        }
+        function close() {
+          bar.classList.remove("open");
+          backdrop.classList.remove("open");
+        }
+        function isOpen() {
+          return bar.classList.contains("open");
+        }
+
+        function renderResults(query) {
+          const q = (query || "").toLowerCase().trim();
+          if (!q) {
+            currentResults = [];
+            results.innerHTML =
+              '<div class="cmd-empty">Type to search countries or cities...</div>';
+            return;
+          }
+          // Dedupe by name+country
+          const seen = new Set();
+          const matched = [];
+          for (const loc of LOCATION_LIST) {
+            const key = (loc.name + (loc.country || "")).toLowerCase();
+            if (seen.has(key)) continue;
+            if (
+              loc.name.toLowerCase().includes(q) ||
+              (loc.country && loc.country.toLowerCase().includes(q))
+            ) {
+              // Prefer exact-prefix matches
+              seen.add(key);
+              matched.push({
+                ...loc,
+                score: loc.name.toLowerCase().startsWith(q) ? 0 : 1,
+              });
+              if (matched.length > 50) break;
+            }
+          }
+          matched.sort((a, b) => a.score - b.score);
+          currentResults = matched.slice(0, 20);
+
+          if (currentResults.length === 0) {
+            results.innerHTML = '<div class="cmd-empty">No matches</div>';
+            return;
+          }
+          results.innerHTML = currentResults
+            .map((loc, i) => {
+              const type =
+                loc.type === "country"
+                  ? "COUNTRY"
+                  : loc.type === "capital"
+                    ? "CAPITAL · " + escapeHtml(loc.country || "")
+                    : "CITY · " + escapeHtml(loc.country || "");
+              return `<div class="cmd-result ${i === activeIdx ? "active" : ""}" data-i="${i}">
+        <div class="cmd-result-main"><span class="flag">${loc.flag || ""}</span>${escapeHtml(loc.name)}</div>
+        <div class="cmd-result-meta">${type}</div>
+      </div>`;
+            })
+            .join("");
+          results.querySelectorAll(".cmd-result").forEach((el) => {
+            el.onclick = () => selectResult(parseInt(el.dataset.i));
+          });
+          // Scroll active into view
+          const activeEl = results.querySelector(".cmd-result.active");
+          if (activeEl) activeEl.scrollIntoView({ block: "nearest" });
+        }
+
+        function selectResult(idx) {
+          const loc = currentResults[idx];
+          if (!loc) return;
+          close();
+          flyToAndPin(loc.lat, loc.lng, true);
+        }
+
+        input.addEventListener("input", () => {
+          activeIdx = 0;
+          renderResults(input.value);
+        });
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            close();
+          } else if (e.key === "Enter") {
+            selectResult(activeIdx);
+          } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (currentResults.length) {
+              activeIdx = Math.min(activeIdx + 1, currentResults.length - 1);
+              renderResults(input.value);
+            }
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            if (currentResults.length) {
+              activeIdx = Math.max(activeIdx - 1, 0);
+              renderResults(input.value);
+            }
+          }
+        });
+        backdrop.addEventListener("click", close);
+
+        // Global keyboard: Ctrl+K / Cmd+K open, ESC close
+        document.addEventListener("keydown", (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+            e.preventDefault();
+            if (isOpen()) close();
+            else open();
+          } else if (e.key === "Escape" && isOpen()) {
+            close();
+          }
+        });
+      }
+
+      // ===== PIN POPUP =====
+      const WEATHER_CODES = {
+        0: { icon: "☀", text: "Clear sky" },
+        1: { icon: "🌤", text: "Mainly clear" },
+        2: { icon: "⛅", text: "Partly cloudy" },
+        3: { icon: "☁", text: "Overcast" },
+        45: { icon: "🌫", text: "Foggy" },
+        48: { icon: "🌫", text: "Rime fog" },
+        51: { icon: "🌦", text: "Light drizzle" },
+        53: { icon: "🌦", text: "Drizzle" },
+        55: { icon: "🌧", text: "Heavy drizzle" },
+        61: { icon: "🌧", text: "Light rain" },
+        63: { icon: "🌧", text: "Rain" },
+        65: { icon: "🌧", text: "Heavy rain" },
+        71: { icon: "🌨", text: "Light snow" },
+        73: { icon: "🌨", text: "Snow" },
+        75: { icon: "❄", text: "Heavy snow" },
+        77: { icon: "🌨", text: "Snow grains" },
+        80: { icon: "🌦", text: "Rain showers" },
+        81: { icon: "🌧", text: "Rain showers" },
+        82: { icon: "⛈", text: "Violent showers" },
+        85: { icon: "🌨", text: "Snow showers" },
+        86: { icon: "❄", text: "Heavy snow showers" },
+        95: { icon: "⛈", text: "Thunderstorm" },
+        96: { icon: "⛈", text: "Thunderstorm + hail" },
+        99: { icon: "⛈", text: "Severe thunderstorm" },
+      };
+
+      function toDMS(deg, isLat) {
+        const dir = isLat ? (deg >= 0 ? "N" : "S") : deg >= 0 ? "E" : "W";
+        const abs = Math.abs(deg);
+        const d = Math.floor(abs);
+        const minFloat = (abs - d) * 60;
+        const m = Math.floor(minFloat);
+        const s = ((minFloat - m) * 60).toFixed(1);
+        return `${d}°${m}'${s}"${dir}`;
+      }
+
+      function flyToAndPin(lat, lng, doFly = true) {
+        droppedPin = { lat, lng };
+        refreshGlobePoints();
+        if (globe && doFly) {
+          globe.controls().autoRotate = false;
+          globe.pointOfView({ lat, lng, altitude: 1.5 }, 1400);
+          setTimeout(() => {
+            if (globe) globe.controls().autoRotate = true;
+          }, 15000);
+        }
+        showPinPopup(lat, lng);
+      }
+
+      let pinFetchSeq = 0; // debounce: ignore stale responses
+
+      // Cache trending news per country (cca2 → { items, ts }), 30-min TTL
+      const countryNewsCache = {};
+
+      async function fetchCountryNews(cca2) {
+        const code = cca2.toUpperCase();
+        const cached = countryNewsCache[code];
+        if (cached && Date.now() - cached.ts < 30 * 60 * 1000) {
+          return cached.items;
+        }
+        try {
+          // Google News RSS for that country (English) — free, no key
+          const newsUrl = `https://news.google.com/rss?hl=en-US&gl=${code}&ceid=${code}:en`;
+          const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(newsUrl)}`;
+          const r = await fetch(proxyUrl);
+          const data = await r.json();
+          const items = (data.items || []).slice(0, 4).map((it) => {
+            // Google News title format: "Headline - Source Name"
+            const lastDash = it.title ? it.title.lastIndexOf(" - ") : -1;
+            const title =
+              lastDash > 0
+                ? it.title.substring(0, lastDash)
+                : it.title || "Untitled";
+            const source =
+              lastDash > 0
+                ? it.title.substring(lastDash + 3)
+                : it.author || "Source";
+            return {
+              title,
+              source,
+              link: it.link || "#",
+              ts: new Date(it.pubDate).getTime() || Date.now(),
+            };
+          });
+          countryNewsCache[code] = { items, ts: Date.now() };
+          return items;
+        } catch (e) {
+          console.warn("country news fail", e);
+          return [];
+        }
+      }
+
+      function updatePopupNews(items) {
+        const list = document.getElementById("pin-news-list");
+        if (!list) return;
+        if (!items || items.length === 0) {
+          list.innerHTML =
+            '<div class="pin-news-empty">No trending data available</div>';
+          return;
+        }
+        list.innerHTML = items
+          .map(
+            (it) => `
+    <a class="pin-news-item" href="${escapeHtml(it.link)}" target="_blank" rel="noopener noreferrer">
+      <div class="pin-news-title">${escapeHtml(it.title)}</div>
+      <div class="pin-news-meta"><span class="pin-news-source">${escapeHtml(it.source)}</span> · ${escapeHtml(relativeTime(it.ts))}</div>
+    </a>
+  `,
+          )
+          .join("");
+      }
+
+      async function showPinPopup(lat, lng) {
+        const popup = document.getElementById("pin-popup");
+        const body = document.getElementById("pin-body");
+        popup.classList.add("open");
+        body.innerHTML =
+          '<div class="pin-loading">Acquiring target data...</div>';
+
+        const mySeq = ++pinFetchSeq;
+
+        try {
+          const [geoRes, weatherRes] = await Promise.all([
+            fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
+            )
+              .then((r) => r.json())
+              .catch(() => null),
+            fetch(
+              `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto`,
+            )
+              .then((r) => r.json())
+              .catch(() => null),
+          ]);
+
+          if (mySeq !== pinFetchSeq) return; // stale, abort
+
+          let countryFacts = null;
+          const cca2 = geoRes?.countryCode;
+          if (cca2 && cca2.length === 2) {
+            try {
+              const cr = await fetch(
+                `https://restcountries.com/v3.1/alpha/${cca2}`,
+              );
+              const cd = await cr.json();
+              countryFacts = Array.isArray(cd) ? cd[0] : cd;
+            } catch (e) {
+              /* optional */
+            }
+          }
+
+          if (mySeq !== pinFetchSeq) return;
+          renderPinPopup(lat, lng, geoRes, weatherRes, countryFacts);
+
+          // Trending news for the country (non-blocking)
+          if (cca2 && cca2.length === 2) {
+            fetchCountryNews(cca2).then((items) => {
+              if (mySeq !== pinFetchSeq) return;
+              updatePopupNews(items);
+            });
+          }
+        } catch (e) {
+          if (mySeq !== pinFetchSeq) return;
+          body.innerHTML =
+            '<div class="pin-loading" style="color: var(--danger)">Failed to load data</div>';
+          console.warn("pin data fail", e);
+        }
+      }
+
+      function renderPinPopup(lat, lng, geo, weather, country) {
+        const body = document.getElementById("pin-body");
+        const cityName = geo?.city || geo?.locality || "";
+        const regionName = geo?.principalSubdivision || "";
+        const countryName = geo?.countryName || "";
+        const isOcean = !countryName && !cityName;
+        const flag = country?.flag || "";
+
+        let localTime = "—",
+          tzName = "—";
+        if (weather?.timezone) {
+          tzName = weather.timezone;
+          try {
+            localTime = new Intl.DateTimeFormat("en-GB", {
+              timeZone: tzName,
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: false,
+            }).format(new Date());
+          } catch (e) {}
+        }
+
+        const cur = weather?.current || {};
+        const wCode = cur.weather_code;
+        const wInfo = WEATHER_CODES[wCode] || { icon: "", text: "Unknown" };
+
+        let html = "";
+
+        // Location header
+        html += '<div class="pin-section">';
+        if (isOcean) {
+          html += '<div class="pin-loc-name">OPEN OCEAN</div>';
+          html += '<div class="pin-loc-country">No land detected</div>';
+        } else {
+          if (flag) html += `<div class="pin-flag">${flag}</div>`;
+          html += `<div class="pin-loc-name">${escapeHtml((cityName || countryName || "UNKNOWN").toUpperCase())}</div>`;
+          const parts = [];
+          if (cityName && regionName && regionName !== cityName)
+            parts.push(regionName);
+          if (countryName && countryName !== cityName) parts.push(countryName);
+          if (parts.length)
+            html += `<div class="pin-loc-country">${escapeHtml(parts.join(", "))}</div>`;
+        }
+        html += "</div>";
+
+        // Coordinates
+        html += '<div class="pin-section">';
+        html += '<div class="pin-section-label">COORDINATES</div>';
+        html += `<div class="pin-data-row"><span class="lbl">DECIMAL</span><span class="val">${lat.toFixed(4)}, ${lng.toFixed(4)}</span></div>`;
+        html += `<div class="pin-data-row"><span class="lbl">DMS LAT</span><span class="val">${toDMS(lat, true)}</span></div>`;
+        html += `<div class="pin-data-row"><span class="lbl">DMS LON</span><span class="val">${toDMS(lng, false)}</span></div>`;
+        html += "</div>";
+
+        // Local time
+        html += '<div class="pin-section">';
+        html += '<div class="pin-section-label">LOCAL TIME</div>';
+        html += `<div class="pin-data-row"><span class="lbl">TIME</span><span class="val">${localTime}</span></div>`;
+        html += `<div class="pin-data-row"><span class="lbl">TZ</span><span class="val">${escapeHtml(tzName)}</span></div>`;
+        html += "</div>";
+
+        // Weather
+        if (cur.temperature_2m !== undefined && cur.temperature_2m !== null) {
+          html += '<div class="pin-section">';
+          html += '<div class="pin-section-label">WEATHER</div>';
+          html += `<div class="pin-data-row"><span class="lbl">CONDITION</span><span class="val">${wInfo.icon} ${escapeHtml(wInfo.text)}</span></div>`;
+          html += `<div class="pin-data-row"><span class="lbl">TEMP</span><span class="val">${cur.temperature_2m}°C</span></div>`;
+          if (cur.relative_humidity_2m != null)
+            html += `<div class="pin-data-row"><span class="lbl">HUMIDITY</span><span class="val">${cur.relative_humidity_2m}%</span></div>`;
+          if (cur.wind_speed_10m != null)
+            html += `<div class="pin-data-row"><span class="lbl">WIND</span><span class="val">${cur.wind_speed_10m} km/h</span></div>`;
+          html += "</div>";
+        }
+
+        // Country data
+        if (country && !isOcean) {
+          html += '<div class="pin-section">';
+          html += '<div class="pin-section-label">COUNTRY DATA</div>';
+          if (country.capital?.[0])
+            html += `<div class="pin-data-row"><span class="lbl">CAPITAL</span><span class="val">${escapeHtml(country.capital[0])}</span></div>`;
+          if (country.population)
+            html += `<div class="pin-data-row"><span class="lbl">POPULATION</span><span class="val">${country.population.toLocaleString("en-US")}</span></div>`;
+          if (country.currencies) {
+            const entry = Object.entries(country.currencies)[0];
+            if (entry) {
+              const sym = entry[1]?.symbol || "";
+              html += `<div class="pin-data-row"><span class="lbl">CURRENCY</span><span class="val">${escapeHtml(sym)} ${escapeHtml(entry[0])}</span></div>`;
+            }
+          }
+          if (country.region)
+            html += `<div class="pin-data-row"><span class="lbl">REGION</span><span class="val">${escapeHtml(country.region)}</span></div>`;
+          if (country.languages) {
+            const langs = Object.values(country.languages)
+              .slice(0, 3)
+              .join(", ");
+            html += `<div class="pin-data-row"><span class="lbl">LANGUAGES</span><span class="val">${escapeHtml(langs)}</span></div>`;
+          }
+          html += "</div>";
+        }
+
+        // Trending news section (populated async via updatePopupNews)
+        const cca2 = geo?.countryCode;
+        if (cca2 && cca2.length === 2 && !isOcean) {
+          const countryLabel = (countryName || cca2).toUpperCase();
+          html += '<div class="pin-section">';
+          html += `<div class="pin-section-label">▸ TRENDING IN ${escapeHtml(countryLabel)}</div>`;
+          html +=
+            '<div class="pin-news-list" id="pin-news-list"><div class="pin-loading-small">Fetching headlines...</div></div>';
+          html += "</div>";
+        }
+
+        body.innerHTML = html;
+      }
+
+      function closePinPopup() {
+        document.getElementById("pin-popup").classList.remove("open");
+        droppedPin = null;
+        refreshGlobePoints();
+      }
+
+      // Setup pin close button + ESC handler (additional to cmdbar ESC)
+      document
+        .getElementById("pin-close")
+        .addEventListener("click", closePinPopup);
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          const popup = document.getElementById("pin-popup");
+          const cmdbar = document.getElementById("cmdbar");
+          // Don't double-close: cmdbar takes priority
+          if (
+            popup.classList.contains("open") &&
+            !cmdbar.classList.contains("open")
+          ) {
+            closePinPopup();
+          }
+        }
+      });
+
+      // Initialize command bar + load locations early
+      setupCommandBar();
+      loadLocations();
+
+      // Show login screen — runBoot() will fire on successful auth
+      setupLogin();
+    </script>
+  </body>
+</html>
